@@ -26,15 +26,18 @@ subprocess.run([sys.executable, "-m", "pip", "install", "-q",
     "jaxtyping",
 ], check=True)
 
-# install safety_circuits from the kernel's working dir
-sys.path.insert(0, "/kaggle/working/safety-circuits/src")
+# ── pull latest source from GitHub ────────────────────────────────────────────
+import pathlib
 
-# ── copy source into working dir ───────────────────────────────────────────────
-import shutil, pathlib
+repo_dir = pathlib.Path("/kaggle/working/safety-circuits")
+if not repo_dir.exists():
+    subprocess.run(["git", "clone", "--depth=1",
+        "https://github.com/pra-nav-04/safety-circuits.git",
+        str(repo_dir)], check=True)
+else:
+    subprocess.run(["git", "-C", str(repo_dir), "pull"], check=True)
 
-src = pathlib.Path("/kaggle/input/safety-circuits-src")
-if src.exists():
-    shutil.copytree(src, "/kaggle/working/safety-circuits", dirs_exist_ok=True)
+sys.path.insert(0, str(repo_dir / "src"))
 
 # ── experiment config ─────────────────────────────────────────────────────────
 MODEL      = os.environ.get("SC_MODEL", "tinyllama")   # tinyllama | phi3

@@ -36,16 +36,22 @@ class Prompt:
 
 # --------------------------------------------------------------------- AdvBench
 def load_advbench(limit: int | None = None) -> list[Prompt]:
-    from datasets import load_dataset
+    # walledai/AdvBench is gated on HF; load directly from the original public CSV.
+    import csv, io, urllib.request
 
-    ds = load_dataset("walledai/AdvBench", split="train")
+    url = (
+        "https://raw.githubusercontent.com/llm-attacks/llm-attacks"
+        "/main/data/advbench/harmful_behaviors.csv"
+    )
+    with urllib.request.urlopen(url, timeout=30) as r:
+        text = r.read().decode()
     out = []
-    for i, row in enumerate(ds):
+    for i, row in enumerate(csv.DictReader(io.StringIO(text))):
         if limit and i >= limit:
             break
         out.append(
             Prompt(
-                text=row["prompt"],
+                text=row["goal"],
                 category="harm",
                 source="advbench",
                 expected_refusal=True,
@@ -105,12 +111,12 @@ def load_hh_harmless(limit: int | None = None) -> list[Prompt]:
     """Benign / harmless instructions — our negative-class anchor for patching."""
     from datasets import load_dataset
 
-    ds = load_dataset("Anthropic/hh-rlhf", data_dir="harmless-base", split="train")
+    # streaming=True avoids downloading the full ~4GB dataset.
+    ds = load_dataset(
+        "Anthropic/hh-rlhf", data_dir="harmless-base", split="train", streaming=True
+    )
     out = []
-    for i, row in enumerate(ds):
-        if limit and i >= limit:
-            break
-        # `chosen` is the preferred completion; we extract the human turn before it.
+    for row in ds:
         human_turn = _extract_first_human(row["chosen"])
         if human_turn is None:
             continue
@@ -122,6 +128,8 @@ def load_hh_harmless(limit: int | None = None) -> list[Prompt]:
                 expected_refusal=False,
             )
         )
+        if limit and len(out) >= limit:
+            break
     return out
 
 

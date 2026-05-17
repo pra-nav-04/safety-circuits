@@ -42,11 +42,19 @@ def load_model(
     torch_dtype = resolve_dtype(dtype)
 
     if spec.is_tl_native:
+        extra: dict = {}
+        if not spec.prepend_bos:
+            # Qwen2.x has no BOS token; TL's internal loader passes add_bos_token=True
+            # regardless of default_prepend_bos, crashing the tokenizer init.
+            # Pre-loading without that flag and handing it to TL avoids the issue.
+            from transformers import AutoTokenizer as _AT
+            extra["tokenizer"] = _AT.from_pretrained(spec.tl_name)
         model = HookedTransformer.from_pretrained(
             spec.tl_name,
             device=str(torch_device),
             dtype=torch_dtype,
             default_prepend_bos=spec.prepend_bos,
+            **extra,
         )
     else:
         model = _load_via_hf_port(spec, torch_device, torch_dtype)

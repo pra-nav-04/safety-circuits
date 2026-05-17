@@ -17,6 +17,14 @@ import pathlib
 import subprocess
 import sys
 
+# Load HF token from Kaggle secrets if available (faster downloads, higher rate limits).
+try:
+    from kaggle_secrets import UserSecretsClient
+    os.environ["HF_TOKEN"] = UserSecretsClient().get_secret("HF_TOKEN")
+    print("HF_TOKEN loaded from Kaggle secrets.")
+except Exception:
+    pass  # No secret configured — unauthenticated HF access still works for public models.
+
 print("=== Step 1: Install dependencies ===")
 subprocess.run([
     sys.executable, "-m", "pip", "install", "-q",

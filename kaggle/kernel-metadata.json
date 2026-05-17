@@ -1,9 +1,9 @@
 {
-  "id": "godspeed28/safety-circuits",
-  "title": "safety-circuits",
-  "code_file": "run_experiment.py",
+  "id": "godspeed28/safety-circuits-nb",
+  "title": "safety-circuits-nb",
+  "code_file": "kernel.ipynb",
   "language": "python",
-  "kernel_type": "script",
+  "kernel_type": "notebook",
   "is_private": true,
   "enable_gpu": true,
   "enable_internet": true,

@@ -61,19 +61,19 @@ def cmd_push() -> None:
     kernel_id = meta["id"]          # godspeed28/safety-circuits
     slug = kernel_id.split("/")[1]
 
-    source = script_path.read_text()
+    # Build a single-cell notebook from the script — more reliable than raw script push.
+    import subprocess as _sp
+    _sp.run(["python3", str(kernel_dir / "make_kernel_notebook.py")], check=True)
+    nb_source = (kernel_dir / "kernel.ipynb").read_text()
 
-    # Correct field names per Kaggle API spec (camelCase, no `id` for new kernels).
-    # machineShape=T4 is required to actually provision a GPU on free Kaggle.
     payload = {
         "newTitle": meta.get("title", slug),
-        "sourceCode": source,
+        "sourceCode": nb_source,
         "language": meta.get("language", "python"),
-        "kernelType": meta.get("kernel_type", "script"),
+        "kernelType": "notebook",       # notebook runs reliably; script type was producing empty cells
         "isPrivate": meta.get("is_private", True),
         "enableGpu": True,
         "enableInternet": True,
-        "machineShape": "T4",
         "datasetDataSources": meta.get("dataset_sources", []),
         "competitionDataSources": meta.get("competition_sources", []),
         "kernelDataSources": meta.get("kernel_sources", []),
@@ -97,7 +97,7 @@ def cmd_push() -> None:
 
 def cmd_status() -> None:
     username, _ = _load_creds()
-    result = _request("GET", "/kernels/list?group=PROFILE&pageSize=5&search=safety-circuits")
+    result = _request("GET", "/kernels/list?group=PROFILE&pageSize=5&search=safety-circuits-nb")
     kernels = result if isinstance(result, list) else []
     if not kernels:
         print("No kernel found yet — it may still be provisioning.")
@@ -115,7 +115,7 @@ def cmd_status() -> None:
 
 def cmd_output() -> None:
     username, _ = _load_creds()
-    kernel_id = f"{username}/safety-circuits"
+    kernel_id = f"{username}/safety-circuits-nb"
     out_dir = pathlib.Path(__file__).resolve().parents[1] / "results" / "kaggle"
     out_dir.mkdir(parents=True, exist_ok=True)
 

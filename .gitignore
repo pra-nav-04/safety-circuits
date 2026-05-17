@@ -37,3 +37,4 @@ htmlcov/
 .pytest_cache/
 .ruff_cache/
 .kaggle_kernel_id
+kaggle/kernel.ipynb

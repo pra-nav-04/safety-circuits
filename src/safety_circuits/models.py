@@ -1,0 +1,100 @@
+"""Load small instruct LMs into TransformerLens.
+
+TinyLlama and Qwen2.5 are natively supported by `HookedTransformer.from_pretrained`.
+Phi-3 is *not* in the supported-models list (as of TL 2.x) so we go through
+`HookedTransformer.from_pretrained_no_processing` after loading the HF weights
+ourselves, then port the state dict.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import torch
+from transformer_lens import HookedTransformer
+
+from .config import ModelSpec, resolve_device, resolve_dtype
+
+
+@dataclass
+class LoadedModel:
+    model: HookedTransformer
+    tokenizer: object
+    spec: ModelSpec
+    device: torch.device
+    dtype: torch.dtype
+
+    @property
+    def n_layers(self) -> int:
+        return self.model.cfg.n_layers
+
+    @property
+    def n_heads(self) -> int:
+        return self.model.cfg.n_heads
+
+
+def load_model(
+    spec: ModelSpec,
+    device: str = "auto",
+    dtype: str = "float32",
+) -> LoadedModel:
+    torch_device = resolve_device(device)
+    torch_dtype = resolve_dtype(dtype)
+
+    if spec.is_tl_native:
+        model = HookedTransformer.from_pretrained(
+            spec.tl_name,
+            device=str(torch_device),
+            dtype=torch_dtype,
+        )
+    else:
+        model = _load_via_hf_port(spec, torch_device, torch_dtype)
+
+    model.eval()
+    return LoadedModel(
+        model=model,
+        tokenizer=model.tokenizer,
+        spec=spec,
+        device=torch_device,
+        dtype=torch_dtype,
+    )
+
+
+def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype) -> HookedTransformer:
+    """Fallback path for checkpoints (e.g., Phi-3) not natively in TL.
+
+    We load the HF model + tokenizer, hand them to TL's `from_pretrained_no_processing`,
+    which keeps the weights as-is and just wires the hooks. Folding / processing flags
+    are intentionally off — we want the geometry untouched so patching stays interpretable.
+    """
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    hf_model = AutoModelForCausalLM.from_pretrained(
+        spec.hf_name, torch_dtype=dtype, trust_remote_code=True
+    )
+    tokenizer = AutoTokenizer.from_pretrained(spec.hf_name, trust_remote_code=True)
+
+    model = HookedTransformer.from_pretrained_no_processing(
+        spec.hf_name,
+        hf_model=hf_model,
+        tokenizer=tokenizer,
+        device=str(device),
+        dtype=dtype,
+        trust_remote_code=True,
+    )
+    return model
+
+
+def apply_chat_template(loaded: LoadedModel, user_msg: str) -> str:
+    """Wrap a raw user message in the model's chat template.
+
+    Matters: TinyLlama and Phi-3 only refuse reliably when prompted in their chat format.
+    """
+    tok = loaded.tokenizer
+    if hasattr(tok, "apply_chat_template") and tok.chat_template is not None:
+        return tok.apply_chat_template(
+            [{"role": "user", "content": user_msg}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+    return user_msg

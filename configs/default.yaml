@@ -1,0 +1,30 @@
+# Default experiment config. Override per-experiment by copying.
+seed: 0
+device: auto              # auto | cuda | mps | cpu
+dtype: float32            # float32 | float16 | bfloat16
+
+model:
+  name: tinyllama         # tinyllama | phi3
+  cache_dir: ~/.cache/huggingface
+
+data:
+  pairs_path: data/processed/pairs.jsonl
+  n_pairs: 64             # how many matched (harm, safe) pairs for patching
+  max_len: 128            # tokens per prompt
+
+refusal:
+  refusal_tokens: ["I", "Sorry", "As", "I'm", "Unfortunately"]
+  continuation_len: 30
+
+patching:
+  components: [resid_pre, attn_out, mlp_out, z]   # what to patch
+  layers: all
+  heads: all
+
+ablation:
+  mode: zero              # zero | mean
+  top_k: 10
+
+output:
+  results_dir: results
+  artifacts_dir: artifacts

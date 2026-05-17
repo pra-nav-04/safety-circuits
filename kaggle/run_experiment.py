@@ -57,7 +57,7 @@ from safety_circuits.config import MODELS
 from safety_circuits.models import load_model
 from safety_circuits.data import load_advbench, load_hh_harmless, build_matched_pairs
 
-MODEL    = os.environ.get("SC_MODEL", "tinyllama")
+MODEL    = os.environ.get("SC_MODEL", "qwen")
 N_PAIRS  = int(os.environ.get("SC_N_PAIRS", "32"))
 TOP_K    = int(os.environ.get("SC_TOP_K", "10"))
 OUT      = pathlib.Path("/kaggle/working")

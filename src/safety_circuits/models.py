@@ -46,6 +46,7 @@ def load_model(
             spec.tl_name,
             device=str(torch_device),
             dtype=torch_dtype,
+            default_prepend_bos=spec.prepend_bos,
         )
     else:
         model = _load_via_hf_port(spec, torch_device, torch_dtype)

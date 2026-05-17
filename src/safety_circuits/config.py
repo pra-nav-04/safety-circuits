@@ -19,6 +19,7 @@ class ModelSpec:
     hf_name: str
     tl_name: str | None
     refusal_first_tokens: tuple[str, ...]
+    prepend_bos: bool = True  # Qwen2.x has no BOS token; must be False for those models
 
     @property
     def is_tl_native(self) -> bool:
@@ -44,6 +45,7 @@ MODELS: dict[str, ModelSpec] = {
         hf_name="Qwen/Qwen2.5-1.5B-Instruct",
         tl_name="Qwen/Qwen2.5-1.5B-Instruct",
         refusal_first_tokens=("I", "Sorry", "As", "I'm", "Unfortunately"),
+        prepend_bos=False,
     ),
 }
 

@@ -1,7 +1,17 @@
-"""Minimal Kaggle API wrapper that supports the new KGAT_ Bearer token format.
+"""Kaggle API wrapper using KGAT_ Bearer token format.
+
+Workflow for updating the kernel:
+  1. Edit code locally, push to GitHub:
+       git push origin main
+  2. Open the notebook in browser and click "Save & Run All":
+       https://www.kaggle.com/code/godspeed28/safety-circuits-nb/edit
+     (The kernel script git-pulls latest from GitHub on every run.)
+
+NOTE: `push` is intentionally disabled. The Kaggle API overwrites the
+notebook with an empty file when pushing via Bearer auth, deleting all code.
+Browser-based save is the only reliable way to update the notebook.
 
 Usage:
-  python scripts/kaggle_api.py push
   python scripts/kaggle_api.py status
   python scripts/kaggle_api.py output
 """
@@ -51,48 +61,19 @@ def _request_binary(path: str, dest: pathlib.Path) -> None:
 
 
 def cmd_push() -> None:
-    username, _ = _load_creds()
-    repo_root = pathlib.Path(__file__).resolve().parents[1]
-    kernel_dir = repo_root / "kaggle"
-    meta_path  = kernel_dir / "kernel-metadata.json"
-    script_path = kernel_dir / "run_experiment.py"
-
-    meta = json.loads(meta_path.read_text())
-    kernel_id = meta["id"]          # godspeed28/safety-circuits
-    slug = kernel_id.split("/")[1]
-
-    # Build a single-cell notebook from the script — more reliable than raw script push.
-    import subprocess as _sp
-    _sp.run(["python3", str(kernel_dir / "make_kernel_notebook.py")], check=True)
-    nb_source = (kernel_dir / "kernel.ipynb").read_text()
-
-    payload = {
-        "newTitle": meta.get("title", slug),
-        "sourceCode": nb_source,
-        "language": meta.get("language", "python"),
-        "kernelType": "notebook",       # notebook runs reliably; script type was producing empty cells
-        "isPrivate": meta.get("is_private", True),
-        "enableGpu": True,
-        "enableInternet": True,
-        "datasetDataSources": meta.get("dataset_sources", []),
-        "competitionDataSources": meta.get("competition_sources", []),
-        "kernelDataSources": meta.get("kernel_sources", []),
-    }
-
-    # Include kernelId if stored from a previous push (needed to update vs create).
-    id_cache = repo_root / ".kaggle_kernel_id"
-    if id_cache.exists():
-        numeric_id = int(id_cache.read_text().strip())
-        payload["id"] = numeric_id
-        print(f"Updating existing kernel {kernel_id} (id={numeric_id}) ...")
-    else:
-        print(f"Creating new kernel {kernel_id} ...")
-
-    result = _request("POST", "/kernels/push", body=payload)
-    # Cache the numeric kernelId for future updates
-    if result.get("kernelId"):
-        id_cache.write_text(str(result["kernelId"]))
-    print("Push result:", json.dumps(result, indent=2))
+    print("ERROR: API push is disabled.")
+    print()
+    print("Pushing via the Kaggle API (Bearer auth) overwrites the notebook with an")
+    print("empty file, deleting all code. Use the browser workflow instead:")
+    print()
+    print("  1. Push code changes to GitHub:")
+    print("       git push origin main")
+    print("  2. Open the notebook and click 'Save & Run All':")
+    print("       https://www.kaggle.com/code/godspeed28/safety-circuits-nb/edit")
+    print()
+    print("The kernel script already git-pulls the latest GitHub code on every run,")
+    print("so no manual code pasting is needed after the initial browser setup.")
+    sys.exit(1)
 
 
 def cmd_status() -> None:
@@ -134,9 +115,10 @@ def cmd_output() -> None:
 
 
 CMDS = {"push": cmd_push, "status": cmd_status, "output": cmd_output}
+ACTIVE_CMDS = ["status", "output"]
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in CMDS:
-        print(f"Usage: python scripts/kaggle_api.py [{' | '.join(CMDS)}]")
+        print(f"Usage: python scripts/kaggle_api.py [{' | '.join(ACTIVE_CMDS)}]")
         sys.exit(1)
     CMDS[sys.argv[1]]()

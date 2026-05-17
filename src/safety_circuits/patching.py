@@ -59,15 +59,21 @@ def _make_patch_hook(
     def hook(activation: torch.Tensor, hook: HookPoint) -> torch.Tensor:
         # activation: [batch, seq, ...] or [batch, seq, head, d_head] for z
         src = source.to(activation.device, dtype=activation.dtype)
+        # Ensure src has a batch dim (some TL versions cache without it).
+        if src.dim() < activation.dim():
+            src = src.unsqueeze(0)
         if head is None:
             if position is None:
-                activation[:] = src
+                # Patch the common prefix; prompts may differ in token length.
+                n = min(activation.shape[1], src.shape[1])
+                activation[:, :n] = src[:, :n]
             else:
                 activation[:, position] = src[:, position]
         else:
             # z hook: [batch, seq, head, d_head]
             if position is None:
-                activation[:, :, head, :] = src[:, :, head, :]
+                n = min(activation.shape[1], src.shape[1])
+                activation[:, :n, head, :] = src[:, :n, head, :]
             else:
                 activation[:, position, head, :] = src[:, position, head, :]
         return activation

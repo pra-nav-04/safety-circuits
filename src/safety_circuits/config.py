@@ -80,7 +80,7 @@ MODELS: dict[str, ModelSpec] = {
     "mistral7b": ModelSpec(
         key="mistral7b",
         hf_name="mistralai/Mistral-7B-Instruct-v0.1",
-        tl_name="mistralai/Mistral-7B-Instruct-v0.1",
+        tl_name=None,  # TL's from_pretrained loads fp32-first then casts → OOM on T4 for 7B
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),

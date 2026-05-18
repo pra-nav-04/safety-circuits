@@ -58,12 +58,11 @@ MODELS: dict[str, ModelSpec] = {
         dtype="float16",
         no_think=True,
     ),
-    "olmo3-7b": ModelSpec(
-        key="olmo3-7b",
-        hf_name="allenai/OLMo-2-1124-7B-Instruct",
+    "olmo2-1b": ModelSpec(
+        key="olmo2-1b",
+        hf_name="allenai/OLMo-2-1124-1B-Instruct",
         tl_name=None,
         refusal_first_tokens=_REFUSAL,
-        dtype="float16",
     ),
     "phi3": ModelSpec(
         key="phi3",

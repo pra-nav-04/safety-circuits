@@ -435,6 +435,8 @@ All files in `results/kaggle/results_Llama3-3b/`:
 | Phi-3-mini | `microsoft/Phi-3-mini-4k-instruct` | 3.8B | float16 | **INCONCLUSIVE** | 0% baseline refusal; HF port broken |
 | Gemma-3-1B | `google/gemma-3-1b-it` | 1B | float32 | **DONE** | L24 dominance — breaks L0 pattern |
 | Llama-3.2-3B | `meta-llama/Llama-3.2-3B-Instruct` | 3B | float16 | **DONE** | Hybrid L0+L24; ablation incomplete at K=10 |
+| Falcon3-1B | `tiiuae/Falcon3-1B-Instruct` | 1B | float16 | PENDING | HF fallback path; no gating |
+| OLMo-2-1B | `allenai/OLMo-2-0425-1B-Instruct` | 1B | float16 | PENDING | HF fallback path; no gating; fully open training data |
 
 ### Other open items
 

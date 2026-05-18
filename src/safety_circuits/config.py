@@ -79,6 +79,21 @@ MODELS: dict[str, ModelSpec] = {
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),
+    # ── extended sweep ─────────────────────────────────────────────────────────
+    "falcon3-1b": ModelSpec(
+        key="falcon3-1b",
+        hf_name="tiiuae/Falcon3-1B-Instruct",
+        tl_name=None,  # Falcon3 not in TL's native list; use HF path
+        refusal_first_tokens=_REFUSAL,
+        dtype="float16",
+    ),
+    "olmo2-1b": ModelSpec(
+        key="olmo2-1b",
+        hf_name="allenai/OLMo-2-0425-1B-Instruct",
+        tl_name=None,  # OLMo-2 not in TL's native list; use HF path
+        refusal_first_tokens=_REFUSAL,
+        dtype="float16",
+    ),
 }
 
 

@@ -1,0 +1,117 @@
+7.0s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.0s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.0s 3 0.00s - to python to disable frozen modules.
+7.0s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+7.6s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.6s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.6s 7 0.00s - to python to disable frozen modules.
+7.6s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+8.9s 9 === Step 1: Install dependencies ===
+12.7s 10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 40.5 MB/s eta 0:00:00
+12.7s 11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 4.1 MB/s eta 0:00:00
+12.9s 12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 40.5 MB/s eta 0:00:00
+12.9s 13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 4.1 MB/s eta 0:00:00
+16.7s 14 Cloning into '/kaggle/working/safety-circuits'...
+16.9s 15 Dependencies installed.
+16.9s 16 === Step 2: Clone source ===
+16.9s 17 Cloning into '/kaggle/working/safety-circuits'...
+16.9s 18 
+16.9s 19 Cloning into '/kaggle/working/safety-circuits'...
+17.7s 20 Cloned.
+17.7s 21 === Step 3: Load model & data ===
+22.0s 22 CUDA available: True
+22.0s 23 GPU: Tesla T4
+43.5s 24 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+43.5s 25 
+43.5s 26 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+65.3s 27 Traceback (most recent call last):
+65.3s 28 File "<string>", line 1, in <module>
+65.3s 29 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 131, in execute_notebook
+65.3s 30 raise_for_execution_errors(nb, output_path)
+65.3s 31 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 251, in raise_for_execution_errors
+65.3s 32 raise error
+65.3s 33 papermill.exceptions.PapermillExecutionError:
+65.3s 34 ---------------------------------------------------------------------------
+65.3s 35 Exception encountered at "In [1]":
+65.3s 36 ---------------------------------------------------------------------------
+65.3s 37 ValueError                                Traceback (most recent call last)
+65.3s 38 /tmp/ipykernel_23/1994618870.py in <cell line: 0>()
+65.3s 39 51 spec   = MODELS[MODEL]
+65.3s 40 52 device = "cuda" if torch.cuda.is_available() else "cpu"
+65.3s 41 ---> 53 loaded = load_model(spec, device=device, dtype="float32")
+65.3s 42 54 print(f"Loaded {spec.key}: {loaded.n_layers}L × {loaded.n_heads}H  on {device}")
+65.3s 43 55
+65.3s 44 
+65.3s 45 /kaggle/working/safety-circuits/src/safety_circuits/models.py in load_model(spec, device, dtype)
+65.3s 46 43
+65.3s 47 44     if spec.is_tl_native:
+65.3s 48 ---> 45         model = HookedTransformer.from_pretrained(
+65.3s 49 46             spec.tl_name,
+65.3s 50 47             device=str(torch_device),
+65.3s 51 
+65.3s 52 /usr/local/lib/python3.12/dist-packages/transformer_lens/HookedTransformer.py in from_pretrained(cls, model_name, fold_ln, center_writing_weights, center_unembed, refactor_factored_attn_matrices, checkpoint_index, checkpoint_value, hf_model, device, n_devices, tokenizer, move_to_device, fold_value_biases, default_prepend_bos, default_padding_side, dtype, first_n_layers, n_ctx, **from_pretrained_kwargs)
+65.3s 53 1427
+65.3s 54 1428         # Create the HookedTransformer object
+65.3s 55 -> 1429         model = cls(
+65.3s 56 1430             cfg,
+65.3s 57 1431             tokenizer,
+65.3s 58 
+65.3s 59 /usr/local/lib/python3.12/dist-packages/transformer_lens/HookedTransformer.py in __init__(self, cfg, tokenizer, move_to_device, default_padding_side)
+65.3s 60 195                 ]
+65.3s 61 196                 self.set_tokenizer(
+65.3s 62 --> 197                     AutoTokenizer.from_pretrained(
+65.3s 63 198                         self.cfg.tokenizer_name,
+65.3s 64 199                         add_bos_token=add_bos_token,
+65.3s 65 
+65.3s 66 /usr/local/lib/python3.12/dist-packages/transformers/models/auto/tokenization_auto.py in from_pretrained(cls, pretrained_model_name_or_path, *inputs, **kwargs)
+65.3s 67 700                 tokenizer_class = TokenizersBackend
+65.3s 68 701
+65.3s 69 --> 702             return tokenizer_class.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+65.3s 70 703         elif getattr(config, "tokenizer_class", None):
+65.3s 71 704             _class = config.tokenizer_class
+65.3s 72 
+65.3s 73 /usr/local/lib/python3.12/dist-packages/transformers/tokenization_utils_base.py in from_pretrained(cls, pretrained_model_name_or_path, cache_dir, force_download, local_files_only, token, revision, trust_remote_code, *init_inputs, **kwargs)
+65.3s 74 1749                 continue
+65.3s 75 1750
+65.3s 76 -> 1751         return cls._from_pretrained(
+65.3s 77 1752             resolved_vocab_files,
+65.3s 78 1753             pretrained_model_name_or_path,
+65.3s 79 
+65.3s 80 /usr/local/lib/python3.12/dist-packages/transformers/tokenization_utils_base.py in _from_pretrained(cls, resolved_vocab_files, pretrained_model_name_or_path, init_configuration, token, cache_dir, local_files_only, _commit_hash, _is_local, trust_remote_code, *init_inputs, **kwargs)
+65.3s 81 2001
+65.3s 82 2002         try:
+65.3s 83 -> 2003             tokenizer = cls(*init_inputs, **init_kwargs)
+65.3s 84 2004         except import_protobuf_decode_error():
+65.3s 85 2005             raise RuntimeError(
+65.3s 86 
+65.3s 87 /usr/local/lib/python3.12/dist-packages/transformers/models/qwen2/tokenization_qwen2.py in __init__(self, vocab, merges, unk_token, bos_token, eos_token, pad_token, add_prefix_space, **kwargs)
+65.3s 88 87         )
+65.3s 89 88
+65.3s 90 ---> 89         super().__init__(
+65.3s 91 90             unk_token=unk_token,
+65.3s 92 91             bos_token=bos_token,
+65.3s 93 
+65.3s 94 /usr/local/lib/python3.12/dist-packages/transformers/tokenization_utils_tokenizers.py in __init__(self, *args, **kwargs)
+65.3s 95 386         )
+65.3s 96 387         if self._should_update_post_processor:
+65.3s 97 --> 388             self.update_post_processor()
+65.3s 98 389
+65.3s 99 390     @property
+65.3s 100 
+65.3s 101 /usr/local/lib/python3.12/dist-packages/transformers/tokenization_utils_tokenizers.py in update_post_processor(self)
+65.3s 102 426         bos_token_id = self.bos_token_id
+65.3s 103 427         if bos is None and self.add_bos_token:
+65.3s 104 --> 428             raise ValueError("add_bos_token = True but bos_token = None")
+65.3s 105 429
+65.3s 106 430         eos = self.eos_token
+65.3s 107 
+65.3s 108 ValueError: add_bos_token = True but bos_token = None
+65.3s 109 
+67.7s 110 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+67.7s 111 cells[i][c] = re.sub('\\\\\|', '|', cell)
+67.9s 112 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+67.9s 113 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+70.9s 114 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+71.2s 115 [NbConvertApp] Writing 112603 bytes to __notebook__.ipynb
+73.6s 116 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+74.4s 117 [NbConvertApp] Writing 384610 bytes to __results__.html

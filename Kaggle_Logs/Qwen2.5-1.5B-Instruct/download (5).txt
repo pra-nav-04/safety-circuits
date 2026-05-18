@@ -1,0 +1,147 @@
+6.0s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+6.0s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+6.0s 3 0.00s - to python to disable frozen modules.
+6.0s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+6.6s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+6.6s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+6.6s 7 0.00s - to python to disable frozen modules.
+6.6s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+7.8s 9 === Step 1: Install dependencies ===
+11.4s 10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 15.2 MB/s eta 0:00:00
+11.4s 11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 4.6 MB/s eta 0:00:00
+11.6s 12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 15.2 MB/s eta 0:00:00
+11.6s 13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 4.6 MB/s eta 0:00:00
+15.3s 14 Cloning into '/kaggle/working/safety-circuits'...
+15.5s 15 Dependencies installed.
+15.5s 16 === Step 2: Clone source ===
+15.5s 17 Cloning into '/kaggle/working/safety-circuits'...
+15.5s 18 
+15.5s 19 Cloning into '/kaggle/working/safety-circuits'...
+16.3s 20 Cloned.
+16.3s 21 === Step 3: Load model & data ===
+20.1s 22 CUDA available: True
+20.1s 23 GPU: Tesla T4
+39.0s 24 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+39.0s 25 
+39.0s 26 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+79.9s 27 Loaded pretrained model Qwen/Qwen2.5-1.5B-Instruct into HookedTransformer
+80.3s 28 Loaded qwen: 28L × 12H  on cuda
+81.9s 29 Built 32 matched pairs
+81.9s 30 === Step 4: Coarse residual trace ===
+82.6s 31 patching resid_pre:   0%|          | 0/28 [00:00<?, ?it/s]
+82.6s 32 patching resid_pre:   0%|          | 0/28 [00:00<?, ?it/s]patching resid_pre:   0%|          | 0/28 [00:00<?, ?it/s]
+82.7s 33 patching resid_pre:   0%|          | 0/28 [00:00<?, ?it/s]
+82.7s 34 
+82.7s 35 
+86.2s 36 Traceback (most recent call last):
+86.2s 37 File "<string>", line 1, in <module>
+86.2s 38 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 131, in execute_notebook
+86.2s 39 raise_for_execution_errors(nb, output_path)
+86.2s 40 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 251, in raise_for_execution_errors
+86.2s 41 raise error
+86.2s 42 papermill.exceptions.PapermillExecutionError:
+86.2s 43 ---------------------------------------------------------------------------
+86.2s 44 Exception encountered at "In [1]":
+86.2s 45 ---------------------------------------------------------------------------
+86.2s 46 RuntimeError                              Traceback (most recent call last)
+86.2s 47 /tmp/ipykernel_23/1994618870.py in <cell line: 0>()
+86.2s 48 64 import pandas as pd
+86.2s 49 65
+86.2s 50 ---> 66 r0 = patch_residual_stream(loaded, pairs[0][0].text, pairs[0][1].text)
+86.2s 51 67 resid_df = pd.DataFrame([x.__dict__ for x in r0])
+86.2s 52 68 resid_df.to_csv(OUT / f"{MODEL}_resid_trace.csv", index=False)
+86.2s 53 
+86.2s 54 /usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py in decorate_context(*args, **kwargs)
+86.2s 55 122         # pyrefly: ignore [bad-context-manager]
+86.2s 56 123         with ctx_factory():
+86.2s 57 --> 124             return func(*args, **kwargs)
+86.2s 58 125
+86.2s 59 126     return decorate_context
+86.2s 60 
+86.2s 61 /kaggle/working/safety-circuits/src/safety_circuits/patching.py in patch_residual_stream(loaded, harm_prompt, safe_prompt, point)
+86.2s 62 176         hook_name = get_act_name(point, layer)
+86.2s 63 177         hook = _make_patch_hook(safe_cache, hook_name, head=None, position=None)
+86.2s 64 --> 178         patched_logits = loaded.model.run_with_hooks(
+86.2s 65 179             harm_tokens, fwd_hooks=[(hook_name, hook)], return_type="logits"
+86.2s 66 180         )
+86.2s 67 
+86.2s 68 /usr/local/lib/python3.12/dist-packages/transformer_lens/hook_points.py in run_with_hooks(self, fwd_hooks, bwd_hooks, reset_hooks_end, clear_contexts, *model_args, **model_kwargs)
+86.2s 69 662
+86.2s 70 663         with self.hooks(fwd_hooks, bwd_hooks, reset_hooks_end, clear_contexts) as hooked_model:
+86.2s 71 --> 664             return hooked_model.forward(*model_args, **model_kwargs)
+86.2s 72 665
+86.2s 73 666     def add_caching_hooks(
+86.2s 74 
+86.2s 75 /usr/local/lib/python3.12/dist-packages/transformer_lens/HookedTransformer.py in forward(self, input, return_type, loss_per_token, prepend_bos, padding_side, start_at_layer, tokens, shortformer_pos_embed, attention_mask, stop_at_layer, past_kv_cache)
+86.2s 76 650                     )
+86.2s 77 651
+86.2s 78 --> 652                 residual = block(
+86.2s 79 653                     residual,
+86.2s 80 654                     # Cache contains a list of TransformerLensKeyValueCache objects, one for each
+86.2s 81 
+86.2s 82 /usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py in _wrapped_call_impl(self, *args, **kwargs)
+86.2s 83 1774             return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+86.2s 84 1775         else:
+86.2s 85 -> 1776             return self._call_impl(*args, **kwargs)
+86.2s 86 1777
+86.2s 87 1778     # torchrec tests the code consistency with the following code
+86.2s 88 
+86.2s 89 /usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py in _call_impl(self, *args, **kwargs)
+86.2s 90 1785                 or _global_backward_pre_hooks or _global_backward_hooks
+86.2s 91 1786                 or _global_forward_hooks or _global_forward_pre_hooks):
+86.2s 92 -> 1787             return forward_call(*args, **kwargs)
+86.2s 93 1788
+86.2s 94 1789         result = None
+86.2s 95 
+86.2s 96 /usr/local/lib/python3.12/dist-packages/transformer_lens/components/transformer_block.py in forward(self, resid_pre, shortformer_pos_embed, past_kv_cache_entry, attention_mask)
+86.2s 97 119             Float[torch.Tensor, "batch pos d_model"]: Our resulting tensor
+86.2s 98 120         """
+86.2s 99 --> 121         resid_pre = self.hook_resid_pre(resid_pre)  # [batch, pos, d_model]
+86.2s 100 122
+86.2s 101 123         if self.cfg.use_attn_in or self.cfg.use_split_qkv_input:
+86.2s 102 
+86.2s 103 /usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py in _wrapped_call_impl(self, *args, **kwargs)
+86.2s 104 1774             return self._compiled_call_impl(*args, **kwargs)  # type: ignore[misc]
+86.2s 105 1775         else:
+86.2s 106 -> 1776             return self._call_impl(*args, **kwargs)
+86.2s 107 1777
+86.2s 108 1778     # torchrec tests the code consistency with the following code
+86.2s 109 
+86.2s 110 /usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py in _call_impl(self, *args, **kwargs)
+86.2s 111 1880
+86.2s 112 1881         try:
+86.2s 113 -> 1882             return inner()
+86.2s 114 1883         except Exception:
+86.2s 115 1884             # run always called hooks if they have not already been run
+86.2s 116 
+86.2s 117 /usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py in inner()
+86.2s 118 1841                         hook_result = hook(self, args, kwargs, result)
+86.2s 119 1842                     else:
+86.2s 120 -> 1843                         hook_result = hook(self, args, result)
+86.2s 121 1844
+86.2s 122 1845                     if hook_result is not None:
+86.2s 123 
+86.2s 124 /usr/local/lib/python3.12/dist-packages/transformer_lens/hook_points.py in full_hook(module, module_input, module_output)
+86.2s 125 224             else:
+86.2s 126 225                 # Call the hook once with the canonical name (self)
+86.2s 127 --> 226                 hook_result = hook(module_output, hook=self)
+86.2s 128 227
+86.2s 129 228             # Apply output reversion if hook_conversion exists and hook returned a value
+86.2s 130 
+86.2s 131 /kaggle/working/safety-circuits/src/safety_circuits/patching.py in hook(activation, hook)
+86.2s 132 62         if head is None:
+86.2s 133 63             if position is None:
+86.2s 134 ---> 64                 activation[:] = src
+86.2s 135 65             else:
+86.2s 136 66                 activation[:, position] = src[:, position]
+86.2s 137 
+86.2s 138 RuntimeError: The expanded size of the tensor (38) must match the existing size (42) at non-singleton dimension 1.  Target sizes: [1, 38, 1536].  Tensor sizes: [42, 1536]
+86.2s 139 
+88.4s 140 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+88.4s 141 cells[i][c] = re.sub('\\\\\|', '|', cell)
+88.6s 142 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+88.6s 143 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+89.1s 144 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+89.5s 145 [NbConvertApp] Writing 130621 bytes to __notebook__.ipynb
+91.8s 146 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+92.7s 147 [NbConvertApp] Writing 400657 bytes to __results__.html

@@ -1,0 +1,143 @@
+5.9s 1 Traceback (most recent call last):
+5.9s 2 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 19, in parse_json
+5.9s 3 nb_dict = json.loads(s, **kwargs)
+5.9s 4 ^^^^^^^^^^^^^^^^^^^^^^^
+5.9s 5 File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+5.9s 6 return _default_decoder.decode(s)
+5.9s 7 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+5.9s 8 File "/usr/lib/python3.12/json/decoder.py", line 338, in decode
+5.9s 9 obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+5.9s 10 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5.9s 11 File "/usr/lib/python3.12/json/decoder.py", line 356, in raw_decode
+5.9s 12 raise JSONDecodeError("Expecting value", s, err.value) from None
+5.9s 13 json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+5.9s 14 
+5.9s 15 The above exception was the direct cause of the following exception:
+5.9s 16 
+5.9s 17 Traceback (most recent call last):
+5.9s 18 File "<string>", line 1, in <module>
+5.9s 19 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 89, in execute_notebook
+5.9s 20 nb = load_notebook_node(input_path)
+5.9s 21 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5.9s 22 File "/usr/local/lib/python3.12/dist-packages/papermill/iorw.py", line 499, in load_notebook_node
+5.9s 23 nb = nbformat.reads(papermill_io.read(notebook_path), as_version=4)
+5.9s 24 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5.9s 25 File "/usr/local/lib/python3.12/dist-packages/nbformat/__init__.py", line 92, in reads
+5.9s 26 nb = reader.reads(s, **kwargs)
+5.9s 27 ^^^^^^^^^^^^^^^^^^^^^^^^^
+5.9s 28 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 75, in reads
+5.9s 29 nb_dict = parse_json(s, **kwargs)
+5.9s 30 ^^^^^^^^^^^^^^^^^^^^^^^
+5.9s 31 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 25, in parse_json
+5.9s 32 raise NotJSONError(message) from e
+5.9s 33 nbformat.reader.NotJSONError: Notebook does not appear to be JSON: ''
+8.1s 34 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+8.1s 35 cells[i][c] = re.sub('\\\\\|', '|', cell)
+8.3s 36 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+8.3s 37 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+8.9s 38 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+8.9s 39 Traceback (most recent call last):
+8.9s 40 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 19, in parse_json
+8.9s 41 nb_dict = json.loads(s, **kwargs)
+8.9s 42 ^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 43 File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+8.9s 44 return _default_decoder.decode(s)
+8.9s 45 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 46 File "/usr/lib/python3.12/json/decoder.py", line 338, in decode
+8.9s 47 obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+8.9s 48 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 49 File "/usr/lib/python3.12/json/decoder.py", line 356, in raw_decode
+8.9s 50 raise JSONDecodeError("Expecting value", s, err.value) from None
+8.9s 51 json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+8.9s 52 
+8.9s 53 The above exception was the direct cause of the following exception:
+8.9s 54 
+8.9s 55 Traceback (most recent call last):
+8.9s 56 File "/usr/local/bin/jupyter-nbconvert", line 10, in <module>
+8.9s 57 sys.exit(main())
+8.9s 58 ^^^^^^
+8.9s 59 File "/usr/local/lib/python3.12/dist-packages/jupyter_core/application.py", line 284, in launch_instance
+8.9s 60 super().launch_instance(argv=argv, **kwargs)
+8.9s 61 File "/usr/local/lib/python3.12/dist-packages/traitlets/config/application.py", line 1075, in launch_instance
+8.9s 62 app.start()
+8.9s 63 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 369, in start
+8.9s 64 self.convert_notebooks()
+8.9s 65 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 541, in convert_notebooks
+8.9s 66 self.convert_single_notebook(notebook_filename)
+8.9s 67 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 506, in convert_single_notebook
+8.9s 68 output, resources = self.export_single_notebook(notebook_filename, resources, input_buffer=input_buffer)
+8.9s 69 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 70 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 435, in export_single_notebook
+8.9s 71 output, resources = self.exporter.from_filename(notebook_filename, resources=resources)
+8.9s 72 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 73 File "/usr/local/lib/python3.12/dist-packages/nbconvert/exporters/exporter.py", line 190, in from_filename
+8.9s 74 return self.from_file(f, resources=resources, **kw)
+8.9s 75 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 76 File "/usr/local/lib/python3.12/dist-packages/nbconvert/exporters/exporter.py", line 208, in from_file
+8.9s 77 return self.from_notebook_node(nbformat.read(file_stream, as_version=4), resources=resources, **kw)
+8.9s 78 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 79 File "/usr/local/lib/python3.12/dist-packages/nbformat/__init__.py", line 174, in read
+8.9s 80 return reads(buf, as_version, capture_validation_error, **kwargs)
+8.9s 81 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 82 File "/usr/local/lib/python3.12/dist-packages/nbformat/__init__.py", line 92, in reads
+8.9s 83 nb = reader.reads(s, **kwargs)
+8.9s 84 ^^^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 85 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 75, in reads
+8.9s 86 nb_dict = parse_json(s, **kwargs)
+8.9s 87 ^^^^^^^^^^^^^^^^^^^^^^^
+8.9s 88 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 25, in parse_json
+8.9s 89 raise NotJSONError(message) from e
+8.9s 90 nbformat.reader.NotJSONError: Notebook does not appear to be JSON: ''
+11.6s 91 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+11.6s 92 Traceback (most recent call last):
+11.6s 93 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 19, in parse_json
+11.6s 94 nb_dict = json.loads(s, **kwargs)
+11.6s 95 ^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 96 File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+11.6s 97 return _default_decoder.decode(s)
+11.6s 98 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 99 File "/usr/lib/python3.12/json/decoder.py", line 338, in decode
+11.6s 100 obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+11.6s 101 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 102 File "/usr/lib/python3.12/json/decoder.py", line 356, in raw_decode
+11.6s 103 raise JSONDecodeError("Expecting value", s, err.value) from None
+11.6s 104 json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+11.6s 105 
+11.6s 106 The above exception was the direct cause of the following exception:
+11.6s 107 
+11.6s 108 Traceback (most recent call last):
+11.6s 109 File "/usr/local/bin/jupyter-nbconvert", line 10, in <module>
+11.6s 110 sys.exit(main())
+11.6s 111 ^^^^^^
+11.6s 112 File "/usr/local/lib/python3.12/dist-packages/jupyter_core/application.py", line 284, in launch_instance
+11.6s 113 super().launch_instance(argv=argv, **kwargs)
+11.6s 114 File "/usr/local/lib/python3.12/dist-packages/traitlets/config/application.py", line 1075, in launch_instance
+11.6s 115 app.start()
+11.6s 116 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 369, in start
+11.6s 117 self.convert_notebooks()
+11.6s 118 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 541, in convert_notebooks
+11.6s 119 self.convert_single_notebook(notebook_filename)
+11.6s 120 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 506, in convert_single_notebook
+11.6s 121 output, resources = self.export_single_notebook(notebook_filename, resources, input_buffer=input_buffer)
+11.6s 122 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 123 File "/usr/local/lib/python3.12/dist-packages/nbconvert/nbconvertapp.py", line 435, in export_single_notebook
+11.6s 124 output, resources = self.exporter.from_filename(notebook_filename, resources=resources)
+11.6s 125 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 126 File "/usr/local/lib/python3.12/dist-packages/nbconvert/exporters/exporter.py", line 190, in from_filename
+11.6s 127 return self.from_file(f, resources=resources, **kw)
+11.6s 128 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 129 File "/usr/local/lib/python3.12/dist-packages/nbconvert/exporters/exporter.py", line 208, in from_file
+11.6s 130 return self.from_notebook_node(nbformat.read(file_stream, as_version=4), resources=resources, **kw)
+11.6s 131 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 132 File "/usr/local/lib/python3.12/dist-packages/nbformat/__init__.py", line 174, in read
+11.6s 133 return reads(buf, as_version, capture_validation_error, **kwargs)
+11.6s 134 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 135 File "/usr/local/lib/python3.12/dist-packages/nbformat/__init__.py", line 92, in reads
+11.6s 136 nb = reader.reads(s, **kwargs)
+11.6s 137 ^^^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 138 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 75, in reads
+11.6s 139 nb_dict = parse_json(s, **kwargs)
+11.6s 140 ^^^^^^^^^^^^^^^^^^^^^^^
+11.6s 141 File "/usr/local/lib/python3.12/dist-packages/nbformat/reader.py", line 25, in parse_json
+11.6s 142 raise NotJSONError(message) from e
+11.6s 143 nbformat.reader.NotJSONError: Notebook does not appear to be JSON: ''

@@ -1,0 +1,91 @@
+7.7s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.7s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.7s 3 0.00s - to python to disable frozen modules.
+7.7s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+8.3s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+8.3s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+8.3s 7 0.00s - to python to disable frozen modules.
+8.3s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+9.6s 9 === Step 1: Install dependencies ===
+13.5s 10 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 36.3 MB/s eta 0:00:00
+13.5s 11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.6 MB/s eta 0:00:00
+13.7s 12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 36.3 MB/s eta 0:00:00
+13.7s 13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.6 MB/s eta 0:00:00
+17.6s 14 Cloning into '/kaggle/working/safety-circuits'...
+17.8s 15 Dependencies installed.
+17.8s 16 === Step 2: Clone source ===
+17.8s 17 Cloning into '/kaggle/working/safety-circuits'...
+17.8s 18 
+17.8s 19 Cloning into '/kaggle/working/safety-circuits'...
+18.7s 20 Cloned.
+18.7s 21 === Step 3: Load model & data ===
+23.0s 22 CUDA available: True
+23.0s 23 GPU: Tesla T4
+45.4s 24 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+45.4s 25 
+45.4s 26 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+93.3s 27 Loaded pretrained model Qwen/Qwen2.5-1.5B-Instruct into HookedTransformer
+93.6s 28 Loaded qwen: 28L × 12H  on cuda
+97.0s 29 Traceback (most recent call last):
+97.0s 30 File "<string>", line 1, in <module>
+97.0s 31 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 131, in execute_notebook
+97.0s 32 raise_for_execution_errors(nb, output_path)
+97.0s 33 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 251, in raise_for_execution_errors
+97.0s 34 raise error
+97.0s 35 papermill.exceptions.PapermillExecutionError:
+97.0s 36 ---------------------------------------------------------------------------
+97.0s 37 Exception encountered at "In [1]":
+97.0s 38 ---------------------------------------------------------------------------
+97.0s 39 DatasetNotFoundError                      Traceback (most recent call last)
+97.0s 40 /tmp/ipykernel_23/1994618870.py in <cell line: 0>()
+97.0s 41 54 print(f"Loaded {spec.key}: {loaded.n_layers}L × {loaded.n_heads}H  on {device}")
+97.0s 42 55
+97.0s 43 ---> 56 harm  = load_advbench(limit=N_PAIRS * 4)
+97.0s 44 57 safe  = load_hh_harmless(limit=N_PAIRS * 4)
+97.0s 45 58 pairs = build_matched_pairs(harm, safe, n_pairs=N_PAIRS)
+97.0s 46 
+97.0s 47 /kaggle/working/safety-circuits/src/safety_circuits/data.py in load_advbench(limit)
+97.0s 48 39     from datasets import load_dataset
+97.0s 49 40
+97.0s 50 ---> 41     ds = load_dataset("walledai/AdvBench", split="train")
+97.0s 51 42     out = []
+97.0s 52 43     for i, row in enumerate(ds):
+97.0s 53 
+97.0s 54 /usr/local/lib/python3.12/dist-packages/datasets/load.py in load_dataset(path, name, data_dir, data_files, split, cache_dir, features, download_config, download_mode, verification_mode, keep_in_memory, save_infos, revision, token, streaming, num_proc, storage_options, **config_kwargs)
+97.0s 55 1686
+97.0s 56 1687     # Create a dataset builder
+97.0s 57 -> 1688     builder_instance = load_dataset_builder(
+97.0s 58 1689         path=path,
+97.0s 59 1690         name=name,
+97.0s 60 
+97.0s 61 /usr/local/lib/python3.12/dist-packages/datasets/load.py in load_dataset_builder(path, name, data_dir, data_files, cache_dir, features, download_config, download_mode, revision, token, storage_options, **config_kwargs)
+97.0s 62 1313     if features is not None:
+97.0s 63 1314         features = _fix_for_backward_compatible_features(features)
+97.0s 64 -> 1315     dataset_module = dataset_module_factory(
+97.0s 65 1316         path,
+97.0s 66 1317         revision=revision,
+97.0s 67 
+97.0s 68 /usr/local/lib/python3.12/dist-packages/datasets/load.py in dataset_module_factory(path, revision, download_config, download_mode, data_dir, data_files, cache_dir, **download_kwargs)
+97.0s 69 1199                     raise ConnectionError(f"Couldn't reach the Hugging Face Hub for dataset '{path}': {e1}") from None
+97.0s 70 1200                 if isinstance(e1, (DataFilesNotFoundError, DatasetNotFoundError, EmptyDatasetError)):
+97.0s 71 -> 1201                     raise e1 from None
+97.0s 72 1202                 if isinstance(e1, FileNotFoundError):
+97.0s 73 1203                     raise FileNotFoundError(
+97.0s 74 
+97.0s 75 /usr/local/lib/python3.12/dist-packages/datasets/load.py in dataset_module_factory(path, revision, download_config, download_mode, data_dir, data_files, cache_dir, **download_kwargs)
+97.0s 76 1187                 elif e.response.status_code == 403:
+97.0s 77 1188                     message += f" Visit the dataset page at https://huggingface.co/datasets/{path} to ask for access."
+97.0s 78 -> 1189                 raise DatasetNotFoundError(message) from e
+97.0s 79 1190         except RevisionNotFoundError as e:
+97.0s 80 1191             raise DatasetNotFoundError(f"Revision '{revision}' doesn't exist for dataset '{path}' on the Hub.") from e
+97.0s 81 
+97.0s 82 DatasetNotFoundError: Dataset 'walledai/AdvBench' is a gated dataset on the Hub. You must be authenticated to access it.
+97.0s 83 
+99.4s 84 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+99.4s 85 cells[i][c] = re.sub('\\\\\|', '|', cell)
+99.6s 86 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+99.6s 87 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+100.2s 88 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+100.6s 89 [NbConvertApp] Writing 121876 bytes to __notebook__.ipynb
+103.1s 90 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+103.9s 91 [NbConvertApp] Writing 391456 bytes to __results__.html

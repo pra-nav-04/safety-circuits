@@ -58,12 +58,6 @@ MODELS: dict[str, ModelSpec] = {
         dtype="float16",
         no_think=True,
     ),
-    "smollm2": ModelSpec(
-        key="smollm2",
-        hf_name="HuggingFaceTB/SmolLM2-1.7B-Instruct",
-        tl_name=None,
-        refusal_first_tokens=_REFUSAL,
-    ),
     "phi3": ModelSpec(
         key="phi3",
         hf_name="microsoft/Phi-3-mini-4k-instruct",
@@ -75,9 +69,8 @@ MODELS: dict[str, ModelSpec] = {
     "gemma3-1b": ModelSpec(
         key="gemma3-1b",
         hf_name="google/gemma-3-1b-it",
-        tl_name=None,
+        tl_name="google/gemma-3-1b-it",  # TL-native; GATED: accept terms at hf.co/google/gemma-3-1b-it
         refusal_first_tokens=_REFUSAL,
-        # GATED: requires HF token + accepting Google terms at hf.co/google/gemma-3-1b-it
     ),
     "mistral7b": ModelSpec(
         key="mistral7b",

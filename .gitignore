@@ -16,7 +16,6 @@ venv/
 # Heavy artefacts — never commit
 data/raw/
 data/processed/
-results/
 artifacts/
 *.pt
 *.npy

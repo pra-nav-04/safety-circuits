@@ -58,9 +58,9 @@ MODELS: dict[str, ModelSpec] = {
         dtype="float16",
         no_think=True,
     ),
-    "olmo2-1b": ModelSpec(
-        key="olmo2-1b",
-        hf_name="allenai/OLMo-2-1124-1B-Instruct",
+    "smollm2": ModelSpec(
+        key="smollm2",
+        hf_name="HuggingFaceTB/SmolLM2-1.7B-Instruct",
         tl_name=None,
         refusal_first_tokens=_REFUSAL,
     ),

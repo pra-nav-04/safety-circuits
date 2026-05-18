@@ -1,0 +1,82 @@
+7.0s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.0s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.0s 3 0.00s - to python to disable frozen modules.
+7.0s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+7.6s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.6s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.6s 7 0.00s - to python to disable frozen modules.
+7.6s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+9.1s 9 HF_TOKEN loaded from Kaggle secrets.
+9.1s 10 === Step 1: Install dependencies ===
+13.0s 11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 25.2 MB/s eta 0:00:00
+13.0s 12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.8 MB/s eta 0:00:00
+13.2s 13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 25.2 MB/s eta 0:00:00
+13.2s 14 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.8 MB/s eta 0:00:00
+17.2s 15 Cloning into '/kaggle/working/safety-circuits'...
+17.4s 16 Dependencies installed.
+17.4s 17 === Step 2: Clone source ===
+17.4s 18 Cloning into '/kaggle/working/safety-circuits'...
+17.4s 19 
+17.4s 20 Cloning into '/kaggle/working/safety-circuits'...
+18.7s 21 Cloned.
+18.7s 22 === Step 3: Load model & data ===
+23.0s 23 CUDA available: True
+23.0s 24 GPU: Tesla T4
+79.9s 25 WARNING:root:With reduced precision, it is advised to use `from_pretrained_no_processing` instead of `from_pretrained`.
+79.9s 26 
+79.9s 27 WARNING:root:With reduced precision, it is advised to use `from_pretrained_no_processing` instead of `from_pretrained`.
+100.0s 28 Kernel died while waiting for execute reply.
+100.3s 29 Traceback (most recent call last):
+100.3s 30 File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 949, in async_execute_cell
+100.3s 31 exec_reply = await self.task_poll_for_reply
+100.3s 32 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 33 File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 730, in _async_poll_for_reply
+100.3s 34 msg = await ensure_async(self.kc.shell_channel.get_msg(timeout=new_timeout))
+100.3s 35 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 36 File "/usr/local/lib/python3.12/dist-packages/nbclient/util.py", line 96, in ensure_async
+100.3s 37 result = await obj
+100.3s 38 ^^^^^^^^^
+100.3s 39 File "/usr/local/lib/python3.12/dist-packages/jupyter_client/channels.py", line 224, in get_msg
+100.3s 40 ready = await self.socket.poll(timeout)
+100.3s 41 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 42 asyncio.exceptions.CancelledError
+100.3s 43 
+100.3s 44 During handling of the above exception, another exception occurred:
+100.3s 45 
+100.3s 46 Traceback (most recent call last):
+100.3s 47 File "<string>", line 1, in <module>
+100.3s 48 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 116, in execute_notebook
+100.3s 49 nb = papermill_engines.execute_notebook_with_engine(
+100.3s 50 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 51 File "/usr/local/lib/python3.12/dist-packages/papermill/engines.py", line 49, in execute_notebook_with_engine
+100.3s 52 return self.get_engine(engine_name).execute_notebook(nb, kernel_name, **kwargs)
+100.3s 53 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 54 File "/usr/local/lib/python3.12/dist-packages/papermill/engines.py", line 371, in execute_notebook
+100.3s 55 cls.execute_managed_notebook(nb_man, kernel_name, log_output=log_output, **kwargs)
+100.3s 56 File "/usr/local/lib/python3.12/dist-packages/papermill/engines.py", line 443, in execute_managed_notebook
+100.3s 57 return PapermillNotebookClient(nb_man, **final_kwargs).execute()
+100.3s 58 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 59 File "/usr/local/lib/python3.12/dist-packages/papermill/clientwrap.py", line 45, in execute
+100.3s 60 self.papermill_execute_cells()
+100.3s 61 File "/usr/local/lib/python3.12/dist-packages/papermill/clientwrap.py", line 72, in papermill_execute_cells
+100.3s 62 self.execute_cell(cell, index)
+100.3s 63 File "/usr/local/lib/python3.12/dist-packages/nbclient/util.py", line 84, in wrapped
+100.3s 64 return just_run(coro(*args, **kwargs))
+100.3s 65 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 66 File "/usr/local/lib/python3.12/dist-packages/nbclient/util.py", line 62, in just_run
+100.3s 67 return loop.run_until_complete(coro)
+100.3s 68 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100.3s 69 File "/usr/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+100.3s 70 return future.result()
+100.3s 71 ^^^^^^^^^^^^^^^
+100.3s 72 File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 953, in async_execute_cell
+100.3s 73 raise DeadKernelError("Kernel died")
+100.3s 74 nbclient.exceptions.DeadKernelError: Kernel died
+103.4s 75 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+103.4s 76 cells[i][c] = re.sub('\\\\\|', '|', cell)
+103.7s 77 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+103.7s 78 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+105.1s 79 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+105.4s 80 [NbConvertApp] Writing 11908 bytes to __notebook__.ipynb
+107.9s 81 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+109.0s 82 [NbConvertApp] Writing 300841 bytes to __results__.html

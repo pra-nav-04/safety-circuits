@@ -299,50 +299,128 @@ All files in `kaggle/outputs/results_Gemma3-1b/`:
 
 ---
 
+## Model 5: Llama-3.2-3B-Instruct
+
+### Setup
+
+| Item | Value |
+|------|-------|
+| Model | `meta-llama/Llama-3.2-3B-Instruct` |
+| Architecture | 28 layers × 24 heads (GQA: 8 KV heads) |
+| Total attention heads | 672 |
+| dtype | float16 |
+| Loading path | HF fallback (`from_pretrained_no_processing`) — TL's native path OOMs on T4 (fp32 first-load) |
+| GPU | Tesla T4 (Kaggle) |
+| Harmful dataset | AdvBench (520 harmful behaviours) |
+| Benign dataset | HH-RLHF harmless-base |
+| Matched pairs | 32 |
+| Patching method | Activation patching on attention head `z` output |
+| Metric | Refusal-logit margin = log p(refusal tokens) − log p(other tokens) |
+| Ablation mode | Zero-ablation of top-10 heads |
+| Note | Gated model — required HF token + Meta ToS acceptance |
+
+### E4 — Coarse Residual Trace
+
+**Result:** All 28 layers produced near-identical delta_margin of **~−29.60** (range: −29.586 to −29.617).
+
+**Interpretation:** Same flat-trace artefact as all previous models.
+
+### E5 — Per-Head Patching Sweep (32 pairs × 28 layers × 24 heads)
+
+#### Top-10 heads by |Δ refusal-margin|
+
+| Rank | Layer | Head | |Δ margin| |
+|------|-------|------|----------|
+| 1  | 0  | 20 | **1.800** |
+| 2  | 24 | 11 | 1.305 |
+| 3  | 0  | 18 | 1.154 |
+| 4  | 14 | 5  | 0.892 |
+| 5  | 11 | 17 | 0.850 |
+| 6  | 15 | 16 | 0.845 |
+| 7  | 9  | 13 | 0.839 |
+| 8  | 24 | 22 | 0.819 |
+| 9  | 12 | 21 | 0.814 |
+| 10 | 14 | 18 | 0.763 |
+
+#### Heatmap observations
+
+- **Hybrid pattern** — L0 and L24 both appear in the top-10, unlike any previous model. Llama combines Qwen's early-layer dominance with Gemma's late-layer activity.
+- **L0H20 is the top head** (Δ=1.800), consistent with the Qwen family's early-layer harm detection. L0H18 is rank 3.
+- **L24H11 and L24H22** (ranks 2 and 8) — strong late-layer activity, reminiscent of Gemma.
+- **Mid-layer cluster**: L9–L15 (ranks 4–10), similar depth to Qwen's mid-band.
+- With 672 total heads, the top-10 represent only **1.5%** of all heads — the most sparse circuit found so far.
+
+### E6 — Ablation Study
+
+Zero-ablated the top-10 candidate heads on a held-out set of 16 harmful prompts.
+
+| Condition | Refusal rate |
+|-----------|-------------|
+| Clean (no ablation) | **93.75%** |
+| Top-10 heads zeroed | **75.00%** |
+
+**The top-10 heads only partially suppress refusal** — a fundamentally different result from all other models (which all reached 0%).
+
+Two possible interpretations:
+1. **More distributed circuit**: Llama-3.2-3B encodes safety across more heads than top-10 captures. Increasing `SC_TOP_K` (e.g. to 20–30) may be needed to reach full suppression.
+2. **HF port artifact**: `from_pretrained_no_processing` may produce slightly misaligned hooks for Llama's GQA architecture, causing the ablation to miss some contributing heads. The patching signal (Δ=1.800 for top head) is substantial, suggesting alignment is at least partially correct.
+
+### Output Files
+
+All files in `results/kaggle/results_Llama3-3b/`:
+
+| File | Contents |
+|------|----------|
+| `llama3-3b_heatmap.png` | 28×24 heatmap of \|Δ refusal-margin\| per head |
+| `llama3-3b_patch_z.csv` | Full ranked head sweep results (672 rows) |
+| `llama3-3b_resid_trace.csv` | Layer-wise residual trace (28 rows) |
+| `llama3-3b_ablation.csv` | Clean vs ablated refusal rates |
+| `llama3-3b_safety_heads.json` | Top-10 heads in JSON |
+
+---
+
 ## Cross-Model Comparison
 
-| Property | Qwen2.5-1.5B | Qwen3-1.7B | Gemma-3-1B |
-|----------|-------------|------------|------------|
-| Architecture | 28L × 12H | 28L × 16H | 26L × 4H |
-| Total heads | 336 | 448 | 104 |
-| Top head | L0H10 (Δ=0.908) | L0H3 (Δ=8.298) | L24H0 (Δ=3.596) |
-| Top-head layer | 0 (first) | 0 (first) | 24 (penultimate) |
-| Mid-layer cluster | L10–L19 | L7–L15 | Distributed L2–L24 |
-| Late layers (≥L20) | Inactive | Mostly inactive | **Active** (L24 is #1) |
-| Heads controlling refusal | 10/336 (3.0%) | 10/448 (2.2%) | 10/104 (9.6%) |
-| Clean refusal rate | 100% | 93.75% | 68.75% |
-| Ablated refusal rate | 0% | 0% | 0% |
+| Property | Qwen2.5-1.5B | Qwen3-1.7B | Gemma-3-1B | Llama-3.2-3B |
+|----------|-------------|------------|------------|--------------|
+| Architecture | 28L × 12H | 28L × 16H | 26L × 4H | 28L × 24H |
+| Total heads | 336 | 448 | 104 | 672 |
+| Top head | L0H10 (Δ=0.908) | L0H3 (Δ=8.298) | L24H0 (Δ=3.596) | L0H20 (Δ=1.800) |
+| Top-head layer | 0 (first) | 0 (first) | 24 (penultimate) | 0 (first) |
+| Late-layer activity | None | One (L23) | Dominant (L24 is #1) | Significant (L24 ranks 2 & 8) |
+| Mid-layer cluster | L10–L19 | L7–L15 | Distributed L2–L24 | L9–L15 |
+| Heads ablated | 10/336 (3.0%) | 10/448 (2.2%) | 10/104 (9.6%) | 10/672 (1.5%) |
+| Clean refusal rate | 100% | 93.75% | 68.75% | 93.75% |
+| Ablated refusal rate | **0%** | **0%** | **0%** | **75%** |
 
-**Key cross-model finding:** The sparsity pattern (top-10 → 0% ablated refusal) holds across all three architectures, strongly supporting H1 and H3. However, Gemma **breaks the layer-0 dominance pattern** seen in both Qwen models. Its top head is at the penultimate layer (L24), and safety heads are spread across the full depth — suggesting Gemma uses a late-layer gating strategy rather than early-layer harm detection. H4 is partially confirmed (sparsity is universal) but the *location* of the circuit is architecture-dependent.
+**Key cross-model finding:** Sparsity (top-10 heads detectable via patching) is universal across all 4 valid models. However, ablation completeness differs: Qwen and Gemma reach 0% with top-10, while Llama only drops to 75%, suggesting a more distributed or redundant safety circuit. Circuit location also varies: L0 dominates in both Qwen models and Llama; L24 dominates in Gemma. Llama uniquely shows both L0 *and* L24 activity — a hybrid pattern.
 
 ---
 
 ## Hypothesis Scorecard
 
-| Hypothesis | Prediction | Qwen2.5 | Qwen3 | Phi-3 | Gemma-3 | Status |
-|-----------|------------|---------|-------|-------|---------|--------|
-| H1 Sparse | ≤10 heads explain most refusal | 10 → 100%→0% | 10 → 93.75%→0% | N/A | 10 → 68.75%→0% | **CONFIRMED** (3/3 valid models) |
-| H2 Causal | Patching flips refusal logit | L0H10: Δ=0.908 | L0H3: Δ=8.298 | N/A | L24H0: Δ=3.596 | **CONFIRMED** (3/3 valid models) |
-| H3 Ablation | Zero top-10 → refusal rate ≤30% | 0% (stronger) | 0% (stronger) | N/A | 0% (stronger) | **CONFIRMED** (3/3 valid models) |
-| H4 Cross-model | Same structural pattern across models | — | L0 pattern replicated | Inconclusive | L0 pattern **not** replicated | **PARTIAL** — sparsity is universal but circuit location varies by architecture |
+| Hypothesis | Prediction | Qwen2.5 | Qwen3 | Phi-3 | Gemma-3 | Llama-3.2 | Status |
+|-----------|------------|---------|-------|-------|---------|-----------|--------|
+| H1 Sparse | ≤10 heads explain most refusal | 10 → 100%→0% | 10 → 93.75%→0% | N/A | 10 → 68.75%→0% | 10 → 93.75%→75% | **PARTIAL** — sparse in all models; complete only in Qwen/Gemma |
+| H2 Causal | Patching flips refusal logit | L0H10: Δ=0.908 | L0H3: Δ=8.298 | N/A | L24H0: Δ=3.596 | L0H20: Δ=1.800 | **CONFIRMED** (4/4 valid models) |
+| H3 Ablation | Zero top-10 → refusal rate ≤30% | 0% ✓ | 0% ✓ | N/A | 0% ✓ | 75% ✗ | **PARTIAL** — holds for Qwen/Gemma, fails for Llama with K=10 |
+| H4 Cross-model | Same structural pattern across models | — | L0 replicated | Inconclusive | L0 not replicated | L0 + L24 hybrid | **PARTIAL** — L0 dominance in 3/4 models; depth of circuit varies |
 
 ---
 
 ## Notable Observations
 
-1. **Layer-0 dominance is Qwen-family-specific, not universal.** Both Qwen models place their dominant safety head at layer 0; Gemma places it at layer 24 (penultimate). This is the strongest cross-architecture finding so far: RLHF safety is sparse everywhere, but *where* the circuit lives depends on the architecture and training recipe.
+1. **Layer-0 dominance is the majority pattern.** Three of four valid models (Qwen2.5, Qwen3, Llama) place their top head at layer 0. Gemma is the exception with L24 dominance. This suggests early-layer harm detection is the more common RLHF implementation, but is not universal.
 
-2. **Sparsity is universal (3/3 valid models).** 3.0%, 2.2%, and 9.6% of heads fully control refusal across three different architectures. This is consistent with the "safety tax" literature: RLHF installs narrow, localised features.
+2. **Llama shows a hybrid circuit — L0 and L24 both active.** The top-10 includes both early (L0) and late (L24) heads, suggesting Llama may implement two-stage safety gating: early detection at L0 and late enforcement at L24.
 
-3. **Gemma's weaker baseline refusal (68.75%).** Five of 16 held-out harmful prompts were not refused even without ablation, suggesting lighter safety training at 1B scale. The ablation still collapses to 0%, meaning the circuit is still causally necessary for the refusals that do occur.
+3. **Ablation completeness correlates with head count sparsity differently than expected.** Gemma (9.6% of heads ablated) reaches 0%; Llama (1.5% ablated) only reaches 75%. A more distributed circuit may require ablating more heads in absolute terms.
 
-4. **Head-index patterns.** In Gemma, H0 recurs across 5 different layers. Whether this reflects a shared function for head 0 across layers, or is coincidental given only 4 head choices, is unclear without further analysis.
+4. **Gemma's weaker baseline refusal (68.75%).** Five of 16 prompts were not refused even without ablation, suggesting lighter safety training at 1B scale.
 
-5. **Late layers are inert in Qwen, active in Gemma.** Layers 20–27 are near-zero in both Qwen models; L24 is Gemma's *top* layer. This architectural divergence suggests different positions for safety gating in the residual stream.
+5. **Residual trace artefact.** The flat traces across all models are methodological, not findings. Full-residual patching trivially works everywhere.
 
-6. **Residual trace artefact.** The flat traces (−32.70, −24.48, −28.71) are a methodological note, not findings. Full-residual patching trivially works everywhere.
-
-7. **No perplexity measurement.** All ablation CSVs have empty perplexity columns — the capability-preservation check has not been run. Should be added before H3 is considered fully rigorous.
+6. **No perplexity measurement.** All ablation CSVs have empty perplexity columns — the capability-preservation check has not been run.
 
 ---
 
@@ -356,12 +434,11 @@ All files in `kaggle/outputs/results_Gemma3-1b/`:
 | Qwen3-1.7B | `Qwen/Qwen3-1.7B` | 1.7B | float16 | **DONE** | L0 pattern replicated |
 | Phi-3-mini | `microsoft/Phi-3-mini-4k-instruct` | 3.8B | float16 | **INCONCLUSIVE** | 0% baseline refusal; HF port broken |
 | Gemma-3-1B | `google/gemma-3-1b-it` | 1B | float32 | **DONE** | L24 dominance — breaks L0 pattern |
-| Llama-3.2-3B | `meta-llama/Llama-3.2-3B-Instruct` | 3B | float16 | PENDING | Replaces Mistral-7B (OOM on T4); **GATED** — accept Meta ToS |
-
-Change `SC_MODEL=llama3-3b` in the Kaggle notebook to run.
+| Llama-3.2-3B | `meta-llama/Llama-3.2-3B-Instruct` | 3B | float16 | **DONE** | Hybrid L0+L24; ablation incomplete at K=10 |
 
 ### Other open items
 
+- [ ] **Llama ablation with higher K**: Re-run with `SC_TOP_K=20` or `SC_TOP_K=30` to test whether more heads are needed to reach full suppression.
 - [ ] **Perplexity check**: Add perplexity measurement to ablation to confirm capability is preserved.
 - [ ] **Position analysis**: Replace position-agnostic patching with last-token-only patching to confirm the effect is concentrated at the generation decision point.
 - [ ] **Lab report**: Write up E4–E6 results for submission.

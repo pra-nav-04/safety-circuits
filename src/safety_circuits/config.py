@@ -66,7 +66,7 @@ MODELS: dict[str, ModelSpec] = {
     "phi3": ModelSpec(
         key="phi3",
         hf_name="microsoft/Phi-3-mini-4k-instruct",
-        tl_name="microsoft/Phi-3-mini-4k-instruct",
+        tl_name=None,  # TL's from_pretrained loads fp32-first then casts → OOM on T4; use HF path
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),

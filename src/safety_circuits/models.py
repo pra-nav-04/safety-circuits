@@ -36,10 +36,10 @@ class LoadedModel:
 def load_model(
     spec: ModelSpec,
     device: str = "auto",
-    dtype: str = "float32",
+    dtype: str | None = None,
 ) -> LoadedModel:
     torch_device = resolve_device(device)
-    torch_dtype = resolve_dtype(dtype)
+    torch_dtype = resolve_dtype(dtype or spec.dtype)
 
     if spec.is_tl_native:
         extra: dict = {}
@@ -65,7 +65,7 @@ def load_model(
         tokenizer=model.tokenizer,
         spec=spec,
         device=torch_device,
-        dtype=torch_dtype,
+        dtype=torch_dtype,  # dtype actually used (may differ from spec.dtype if caller overrides)
     )
 
 
@@ -95,15 +95,15 @@ def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype)
 
 
 def apply_chat_template(loaded: LoadedModel, user_msg: str) -> str:
-    """Wrap a raw user message in the model's chat template.
-
-    Matters: TinyLlama and Phi-3 only refuse reliably when prompted in their chat format.
-    """
+    """Wrap a raw user message in the model's chat template."""
     tok = loaded.tokenizer
     if hasattr(tok, "apply_chat_template") and tok.chat_template is not None:
+        kwargs: dict = {"tokenize": False, "add_generation_prompt": True}
+        if loaded.spec.no_think:
+            # Qwen3 defaults to <think>...</think> blocks; disable for clean logit reads.
+            kwargs["enable_thinking"] = False
         return tok.apply_chat_template(
             [{"role": "user", "content": user_msg}],
-            tokenize=False,
-            add_generation_prompt=True,
+            **kwargs,
         )
     return user_msg

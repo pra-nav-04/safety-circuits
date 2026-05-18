@@ -19,7 +19,9 @@ class ModelSpec:
     hf_name: str
     tl_name: str | None
     refusal_first_tokens: tuple[str, ...]
-    prepend_bos: bool = True  # Qwen2.x has no BOS token; must be False for those models
+    prepend_bos: bool = True   # Qwen2.x/3.x have no BOS token; set False for those
+    dtype: str = "float32"     # preferred inference dtype; float16 for 7-8B models on T4
+    no_think: bool = False     # Qwen3 thinking mode — set True to disable <think> blocks
 
     @property
     def is_tl_native(self) -> bool:
@@ -27,25 +29,60 @@ class ModelSpec:
         return self.tl_name is not None
 
 
+_REFUSAL = ("I", "Sorry", "As", "I'm", "Unfortunately")
+
 MODELS: dict[str, ModelSpec] = {
+    # ── baseline (completed) ────────────────────────────────────────────────
     "tinyllama": ModelSpec(
         key="tinyllama",
         hf_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
         tl_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-        refusal_first_tokens=("I", "Sorry", "As", "I'm", "Unfortunately"),
-    ),
-    "phi3": ModelSpec(
-        key="phi3",
-        hf_name="microsoft/Phi-3-mini-4k-instruct",
-        tl_name=None,  # loaded via HF + manual port (see models.py)
-        refusal_first_tokens=("I", "Sorry", "As", "I'm", "Unfortunately"),
+        refusal_first_tokens=_REFUSAL,
     ),
     "qwen": ModelSpec(
         key="qwen",
         hf_name="Qwen/Qwen2.5-1.5B-Instruct",
         tl_name="Qwen/Qwen2.5-1.5B-Instruct",
-        refusal_first_tokens=("I", "Sorry", "As", "I'm", "Unfortunately"),
+        refusal_first_tokens=_REFUSAL,
         prepend_bos=False,
+    ),
+    # ── planned multi-model sweep ───────────────────────────────────────────
+    "qwen3": ModelSpec(
+        key="qwen3",
+        hf_name="Qwen/Qwen3-1.7B",
+        tl_name="Qwen/Qwen3-1.7B",
+        refusal_first_tokens=_REFUSAL,
+        prepend_bos=False,
+        dtype="float16",
+        no_think=True,
+    ),
+    "olmo3-7b": ModelSpec(
+        key="olmo3-7b",
+        hf_name="allenai/OLMo-2-1124-7B-Instruct",
+        tl_name=None,
+        refusal_first_tokens=_REFUSAL,
+        dtype="float16",
+    ),
+    "phi3": ModelSpec(
+        key="phi3",
+        hf_name="microsoft/Phi-3-mini-4k-instruct",
+        tl_name="microsoft/Phi-3-mini-4k-instruct",
+        refusal_first_tokens=_REFUSAL,
+        dtype="float16",
+    ),
+    "gemma3-1b": ModelSpec(
+        key="gemma3-1b",
+        hf_name="google/gemma-3-1b-it",
+        tl_name=None,
+        refusal_first_tokens=_REFUSAL,
+        # GATED: requires HF token + accepting Google terms at hf.co/google/gemma-3-1b-it
+    ),
+    "mistral7b": ModelSpec(
+        key="mistral7b",
+        hf_name="mistralai/Mistral-7B-Instruct-v0.1",
+        tl_name="mistralai/Mistral-7B-Instruct-v0.1",
+        refusal_first_tokens=_REFUSAL,
+        dtype="float16",
     ),
 }
 

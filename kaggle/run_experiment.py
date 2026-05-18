@@ -72,7 +72,7 @@ OUT      = pathlib.Path("/kaggle/working")
 
 spec   = MODELS[MODEL]
 device = "cuda" if torch.cuda.is_available() else "cpu"
-loaded = load_model(spec, device=device, dtype="float32")
+loaded = load_model(spec, device=device)  # dtype comes from ModelSpec.dtype
 print(f"Loaded {spec.key}: {loaded.n_layers}L × {loaded.n_heads}H  on {device}")
 
 harm  = load_advbench(limit=N_PAIRS * 4)

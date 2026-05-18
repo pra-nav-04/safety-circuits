@@ -118,7 +118,20 @@ All files in `kaggle/outputs/results/`:
 
 ## Next Steps
 
-- [ ] **H4**: Run Phi-3-mini-4k-instruct — do the same head positions emerge?
-- [ ] **Perplexity check**: Re-run ablation with perplexity measurement enabled to confirm capability is preserved.
+### Multi-model sweep (H4 — cross-model replication)
+
+| Model | HF ID | Size | dtype | Status | Notes |
+|-------|-------|------|-------|--------|-------|
+| Qwen3-1.7B | `Qwen/Qwen3-1.7B` | 1.7B | float16 | PENDING | thinking mode disabled |
+| OLMo-2-7B | `allenai/OLMo-2-1124-7B-Instruct` | 7B | float16 | PENDING | no HF auth needed |
+| Phi-3-mini | `microsoft/Phi-3-mini-4k-instruct` | 3.8B | float16 | PENDING | now TL-native |
+| Gemma-3-1B | `google/gemma-3-1b-it` | 1B | float32 | PENDING | **GATED** — needs HF token + Google terms |
+| Mistral-7B | `mistralai/Mistral-7B-Instruct-v0.1` | 7B | float16 | PENDING | no HF auth needed |
+
+Change `SC_MODEL` env var in Kaggle notebook to run each model.
+
+### Other open items
+
+- [ ] **Perplexity check**: Re-run ablation with perplexity measurement enabled to confirm capability is preserved (currently empty columns in `qwen_ablation.csv`).
 - [ ] **Position analysis**: Replace position-agnostic patching with last-token-only patching to confirm the effect is concentrated at the generation decision point.
 - [ ] **Lab report**: Write up E4–E6 results for submission.

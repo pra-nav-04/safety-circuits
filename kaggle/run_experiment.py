@@ -2,14 +2,13 @@
 
 Runs on Kaggle GPU (T4). Workflow:
 1. Install deps
-2. Clone public repo from GitHub
-3. Run activation patching sweep on TinyLlama
+2. Clone / pull latest src from GitHub
+3. Run activation patching sweep on the model set by SC_MODEL env var
 4. Ablate top-K heads
 5. Save results to /kaggle/working/ (auto-persisted as kernel output)
 
-Push:   python3 scripts/kaggle_api.py push
-Status: python3 scripts/kaggle_api.py status
-Output: python3 scripts/kaggle_api.py output
+Update workflow: push src changes to GitHub, then click "Save & Run All" in browser.
+Status / output: python3 scripts/kaggle_api.py status | output
 """
 
 import os

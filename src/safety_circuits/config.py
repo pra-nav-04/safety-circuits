@@ -72,10 +72,10 @@ MODELS: dict[str, ModelSpec] = {
         tl_name="google/gemma-3-1b-it",  # TL-native; GATED: accept terms at hf.co/google/gemma-3-1b-it
         refusal_first_tokens=_REFUSAL,
     ),
-    "mistral7b": ModelSpec(
-        key="mistral7b",
-        hf_name="mistralai/Mistral-7B-Instruct-v0.1",
-        tl_name=None,  # TL's from_pretrained loads fp32-first then casts → OOM on T4 for 7B
+    "llama3-3b": ModelSpec(
+        key="llama3-3b",
+        hf_name="meta-llama/Llama-3.2-3B-Instruct",
+        tl_name="meta-llama/Llama-3.2-3B-Instruct",  # TL-native; GATED: accept terms at hf.co/meta-llama/Llama-3.2-3B-Instruct
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),

@@ -76,10 +76,18 @@ def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype)
     which keeps the weights as-is and just wires the hooks. Folding / processing flags
     are intentionally off — we want the geometry untouched so patching stays interpretable.
     """
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+
+    config = AutoConfig.from_pretrained(spec.hf_name, trust_remote_code=True)
+    # Phi-3's custom modeling code reads rope_scaling["type"], but transformers ≥4.43
+    # renamed that key to "rope_type". Patch it so both old and new code paths work.
+    if hasattr(config, "rope_scaling") and isinstance(config.rope_scaling, dict):
+        rs = config.rope_scaling
+        if "rope_type" in rs and "type" not in rs:
+            rs["type"] = rs["rope_type"]
 
     hf_model = AutoModelForCausalLM.from_pretrained(
-        spec.hf_name, torch_dtype=dtype, trust_remote_code=True
+        spec.hf_name, config=config, torch_dtype=dtype, trust_remote_code=True
     )
     tokenizer = AutoTokenizer.from_pretrained(spec.hf_name, trust_remote_code=True)
 

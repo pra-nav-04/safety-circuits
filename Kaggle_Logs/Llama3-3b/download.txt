@@ -1,0 +1,52 @@
+7.2s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.2s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.2s 3 0.00s - to python to disable frozen modules.
+7.2s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+7.8s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.8s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.8s 7 0.00s - to python to disable frozen modules.
+7.8s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+9.3s 9 HF_TOKEN loaded from Kaggle secrets.
+9.3s 10 === Step 1: Install dependencies ===
+13.4s 11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 28.2 MB/s eta 0:00:00
+13.4s 12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.5 MB/s eta 0:00:00
+13.6s 13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 28.2 MB/s eta 0:00:00
+13.6s 14 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.5 MB/s eta 0:00:00
+17.5s 15 Cloning into '/kaggle/working/safety-circuits'...
+17.7s 16 Dependencies installed.
+17.7s 17 === Step 2: Clone source ===
+17.7s 18 Cloning into '/kaggle/working/safety-circuits'...
+17.7s 19 
+17.7s 20 Cloning into '/kaggle/working/safety-circuits'...
+18.9s 21 Cloned.
+18.9s 22 === Step 3: Load model & data ===
+23.3s 23 CUDA available: True
+23.3s 24 GPU: Tesla T4
+48.4s 25 Traceback (most recent call last):
+48.4s 26 File "<string>", line 1, in <module>
+48.4s 27 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 131, in execute_notebook
+48.4s 28 raise_for_execution_errors(nb, output_path)
+48.4s 29 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 251, in raise_for_execution_errors
+48.4s 30 raise error
+48.4s 31 papermill.exceptions.PapermillExecutionError:
+48.4s 32 ---------------------------------------------------------------------------
+48.4s 33 Exception encountered at "In [1]":
+48.4s 34 ---------------------------------------------------------------------------
+48.4s 35 KeyError                                  Traceback (most recent call last)
+48.4s 36 /tmp/ipykernel_23/3871019686.py in <cell line: 0>()
+48.4s 37 57 OUT      = pathlib.Path("/kaggle/working")
+48.4s 38 58
+48.4s 39 ---> 59 spec   = MODELS[MODEL]
+48.4s 40 60 device = "cuda" if torch.cuda.is_available() else "cpu"
+48.4s 41 61 loaded = load_model(spec, device=device)  # dtype comes from ModelSpec.dtype
+48.4s 42 
+48.4s 43 KeyError: 'llama3-3b'
+48.4s 44 
+50.5s 45 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+50.5s 46 cells[i][c] = re.sub('\\\\\|', '|', cell)
+50.6s 47 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+50.6s 48 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+51.3s 49 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+51.6s 50 [NbConvertApp] Writing 10479 bytes to __notebook__.ipynb
+54.0s 51 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+54.8s 52 [NbConvertApp] Writing 300800 bytes to __results__.html

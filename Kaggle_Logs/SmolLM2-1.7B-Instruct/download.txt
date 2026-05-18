@@ -1,0 +1,177 @@
+7.1s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.1s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.1s 3 0.00s - to python to disable frozen modules.
+7.1s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+7.7s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.7s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.7s 7 0.00s - to python to disable frozen modules.
+7.7s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+9.1s 9 HF_TOKEN loaded from Kaggle secrets.
+9.1s 10 === Step 1: Install dependencies ===
+13.2s 11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 15.6 MB/s eta 0:00:00
+13.2s 12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.9 MB/s eta 0:00:00
+13.4s 13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 15.6 MB/s eta 0:00:00
+13.4s 14 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 3.9 MB/s eta 0:00:00
+17.4s 15 Cloning into '/kaggle/working/safety-circuits'...
+17.6s 16 Dependencies installed.
+17.6s 17 === Step 2: Clone source ===
+17.6s 18 Cloning into '/kaggle/working/safety-circuits'...
+17.6s 19 
+17.6s 20 Cloning into '/kaggle/working/safety-circuits'...
+18.8s 21 Cloned.
+18.8s 22 === Step 3: Load model & data ===
+23.3s 23 CUDA available: True
+23.3s 24 GPU: Tesla T4
+49.3s 25 Traceback (most recent call last):
+49.3s 26 File "<string>", line 1, in <module>
+49.3s 27 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 131, in execute_notebook
+49.3s 28 raise_for_execution_errors(nb, output_path)
+49.3s 29 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 251, in raise_for_execution_errors
+49.3s 30 raise error
+49.3s 31 papermill.exceptions.PapermillExecutionError:
+49.3s 32 ---------------------------------------------------------------------------
+49.3s 33 Exception encountered at "In [1]":
+49.3s 34 ---------------------------------------------------------------------------
+49.3s 35 HTTPStatusError                           Traceback (most recent call last)
+49.3s 36 /usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_http.py in hf_raise_for_status(response, endpoint_name)
+49.3s 37 656     try:
+49.3s 38 --> 657         response.raise_for_status()
+49.3s 39 658     except httpx.HTTPStatusError as e:
+49.3s 40 
+49.3s 41 /usr/local/lib/python3.12/dist-packages/httpx/_models.py in raise_for_status(self)
+49.3s 42 828         message = message.format(self, error_type=error_type)
+49.3s 43 --> 829         raise HTTPStatusError(message, request=request, response=self)
+49.3s 44 830
+49.3s 45 
+49.3s 46 HTTPStatusError: Client error '404 Not Found' for url 'https://huggingface.co/allenai/OLMo-2-1124-1B-Instruct/resolve/main/config.json'
+49.3s 47 For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404
+49.3s 48 
+49.3s 49 The above exception was the direct cause of the following exception:
+49.3s 50 
+49.3s 51 RepositoryNotFoundError                   Traceback (most recent call last)
+49.3s 52 /usr/local/lib/python3.12/dist-packages/transformers/utils/hub.py in cached_files(path_or_repo_id, filenames, cache_dir, force_download, proxies, token, revision, local_files_only, subfolder, repo_type, user_agent, _raise_exceptions_for_gated_repo, _raise_exceptions_for_missing_entries, _raise_exceptions_for_connection_errors, _commit_hash, **deprecated_kwargs)
+49.3s 53 418             # This is slightly better for only 1 file
+49.3s 54 --> 419             hf_hub_download(
+49.3s 55 420                 path_or_repo_id,
+49.3s 56 
+49.3s 57 /usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_validators.py in _inner_fn(*args, **kwargs)
+49.3s 58 88
+49.3s 59 ---> 89         return fn(*args, **kwargs)
+49.3s 60 90
+49.3s 61 
+49.3s 62 /usr/local/lib/python3.12/dist-packages/huggingface_hub/file_download.py in hf_hub_download(repo_id, filename, subfolder, repo_type, revision, library_name, library_version, cache_dir, local_dir, user_agent, force_download, etag_timeout, token, local_files_only, headers, endpoint, tqdm_class, dry_run)
+49.3s 63 1031     else:
+49.3s 64 -> 1032         return _hf_hub_download_to_cache_dir(
+49.3s 65 1033             # Destination
+49.3s 66 
+49.3s 67 /usr/local/lib/python3.12/dist-packages/huggingface_hub/file_download.py in _hf_hub_download_to_cache_dir(cache_dir, repo_id, filename, repo_type, revision, endpoint, etag_timeout, headers, token, local_files_only, force_download, tqdm_class, dry_run)
+49.3s 68 1182         if head_call_error is not None:
+49.3s 69 -> 1183             _raise_on_head_call_error(head_call_error, force_download, local_files_only)
+49.3s 70 1184
+49.3s 71 
+49.3s 72 /usr/local/lib/python3.12/dist-packages/huggingface_hub/file_download.py in _raise_on_head_call_error(head_call_error, force_download, local_files_only)
+49.3s 73 1811         # Unauthorized => likely a token issue => let's raise the actual error
+49.3s 74 -> 1812         raise head_call_error
+49.3s 75 1813     else:
+49.3s 76 
+49.3s 77 /usr/local/lib/python3.12/dist-packages/huggingface_hub/file_download.py in _get_metadata_or_catch_error(repo_id, filename, repo_type, revision, endpoint, etag_timeout, headers, token, local_files_only, relative_filename, storage_folder, retry_on_errors)
+49.3s 78 1698             try:
+49.3s 79 -> 1699                 metadata = get_hf_file_metadata(
+49.3s 80 1700                     url=url,
+49.3s 81 
+49.3s 82 /usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_validators.py in _inner_fn(*args, **kwargs)
+49.3s 83 88
+49.3s 84 ---> 89         return fn(*args, **kwargs)
+49.3s 85 90
+49.3s 86 
+49.3s 87 /usr/local/lib/python3.12/dist-packages/huggingface_hub/file_download.py in get_hf_file_metadata(url, token, timeout, library_name, library_version, user_agent, headers, endpoint, retry_on_errors)
+49.3s 88 1621     # Retrieve metadata
+49.3s 89 -> 1622     response = _httpx_follow_relative_redirects(
+49.3s 90 1623         method="HEAD", url=url, headers=hf_headers, timeout=timeout, retry_on_errors=retry_on_errors
+49.3s 91 
+49.3s 92 /usr/local/lib/python3.12/dist-packages/huggingface_hub/file_download.py in _httpx_follow_relative_redirects(method, url, retry_on_errors, **httpx_kwargs)
+49.3s 93 308         )
+49.3s 94 --> 309         hf_raise_for_status(response)
+49.3s 95 310
+49.3s 96 
+49.3s 97 /usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_http.py in hf_raise_for_status(response, endpoint_name)
+49.3s 98 709             )
+49.3s 99 --> 710             raise _format(RepositoryNotFoundError, message, response) from e
+49.3s 100 711
+49.3s 101 
+49.3s 102 RepositoryNotFoundError: 404 Client Error. (Request ID: Root=1-6a0b0518-3dd5201344ac495b6e66843c;0c28a0f3-674b-4c94-8a39-657a9cb0ad8c)
+49.3s 103 
+49.3s 104 Repository Not Found for url: https://huggingface.co/allenai/OLMo-2-1124-1B-Instruct/resolve/main/config.json.
+49.3s 105 Please make sure you specified the correct `repo_id` and `repo_type`.
+49.3s 106 If you are trying to access a private or gated repo, make sure you are authenticated. For more details, see https://huggingface.co/docs/huggingface_hub/authentication
+49.3s 107 
+49.3s 108 The above exception was the direct cause of the following exception:
+49.3s 109 
+49.3s 110 OSError                                   Traceback (most recent call last)
+49.3s 111 /tmp/ipykernel_22/1625672485.py in <cell line: 0>()
+49.3s 112 59 spec   = MODELS[MODEL]
+49.3s 113 60 device = "cuda" if torch.cuda.is_available() else "cpu"
+49.3s 114 ---> 61 loaded = load_model(spec, device=device)  # dtype comes from ModelSpec.dtype
+49.3s 115 62 print(f"Loaded {spec.key}: {loaded.n_layers}L × {loaded.n_heads}H  on {device}")
+49.3s 116 63
+49.3s 117 
+49.3s 118 /kaggle/working/safety-circuits/src/safety_circuits/models.py in load_model(spec, device, dtype)
+49.3s 119 58         )
+49.3s 120 59     else:
+49.3s 121 ---> 60         model = _load_via_hf_port(spec, torch_device, torch_dtype)
+49.3s 122 61
+49.3s 123 62     model.eval()
+49.3s 124 
+49.3s 125 /kaggle/working/safety-circuits/src/safety_circuits/models.py in _load_via_hf_port(spec, device, dtype)
+49.3s 126 79     from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
+49.3s 127 80
+49.3s 128 ---> 81     config = AutoConfig.from_pretrained(spec.hf_name, trust_remote_code=True)
+49.3s 129 82     if spec.needs_rope_patch and hasattr(config, "rope_scaling") and isinstance(config.rope_scaling, dict):
+49.3s 130 83         # Phi-3's custom modeling code reads rope_scaling["type"], but transformers ≥4.43
+49.3s 131 
+49.3s 132 /usr/local/lib/python3.12/dist-packages/transformers/models/auto/configuration_auto.py in from_pretrained(cls, pretrained_model_name_or_path, **kwargs)
+49.3s 133 1354         code_revision = kwargs.pop("code_revision", None)
+49.3s 134 1355
+49.3s 135 -> 1356         config_dict, unused_kwargs = PreTrainedConfig.get_config_dict(pretrained_model_name_or_path, **kwargs)
+49.3s 136 1357         has_remote_code = "auto_map" in config_dict and "AutoConfig" in config_dict["auto_map"]
+49.3s 137 1358         has_local_code = "model_type" in config_dict and config_dict["model_type"] in CONFIG_MAPPING
+49.3s 138 
+49.3s 139 /usr/local/lib/python3.12/dist-packages/transformers/configuration_utils.py in get_config_dict(cls, pretrained_model_name_or_path, **kwargs)
+49.3s 140 567         original_kwargs = copy.deepcopy(kwargs)
+49.3s 141 568         # Get config dict associated with the base config file
+49.3s 142 --> 569         config_dict, kwargs = cls._get_config_dict(pretrained_model_name_or_path, **kwargs)
+49.3s 143 570         if config_dict is None:
+49.3s 144 571             return {}, kwargs
+49.3s 145 
+49.3s 146 /usr/local/lib/python3.12/dist-packages/transformers/configuration_utils.py in _get_config_dict(cls, pretrained_model_name_or_path, **kwargs)
+49.3s 147 622             try:
+49.3s 148 623                 # Load from local folder or from cache or download from model Hub and cache
+49.3s 149 --> 624                 resolved_config_file = cached_file(
+49.3s 150 625                     pretrained_model_name_or_path,
+49.3s 151 626                     configuration_file,
+49.3s 152 
+49.3s 153 /usr/local/lib/python3.12/dist-packages/transformers/utils/hub.py in cached_file(path_or_repo_id, filename, **kwargs)
+49.3s 154 274     ```
+49.3s 155 275     """
+49.3s 156 --> 276     file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
+49.3s 157 277     file = file[0] if file is not None else file
+49.3s 158 278     return file
+49.3s 159 
+49.3s 160 /usr/local/lib/python3.12/dist-packages/transformers/utils/hub.py in cached_files(path_or_repo_id, filenames, cache_dir, force_download, proxies, token, revision, local_files_only, subfolder, repo_type, user_agent, _raise_exceptions_for_gated_repo, _raise_exceptions_for_missing_entries, _raise_exceptions_for_connection_errors, _commit_hash, **deprecated_kwargs)
+49.3s 161 447         # We cannot recover from them
+49.3s 162 448         if isinstance(e, RepositoryNotFoundError) and not isinstance(e, GatedRepoError):
+49.3s 163 --> 449             raise OSError(
+49.3s 164 450                 f"{path_or_repo_id} is not a local folder and is not a valid model identifier "
+49.3s 165 451                 "listed on 'https://huggingface.co/models'\nIf this is a private repository, make sure to pass a token "
+49.3s 166 
+49.3s 167 OSError: allenai/OLMo-2-1124-1B-Instruct is not a local folder and is not a valid model identifier listed on 'https://huggingface.co/models'
+49.3s 168 If this is a private repository, make sure to pass a token having permission to this repo either by logging in with `hf auth login` or by passing `token=<your_token>`
+49.3s 169 
+51.5s 170 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+51.5s 171 cells[i][c] = re.sub('\\\\\|', '|', cell)
+51.7s 172 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+51.7s 173 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+52.3s 174 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+52.7s 175 [NbConvertApp] Writing 31466 bytes to __notebook__.ipynb
+55.1s 176 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+56.0s 177 [NbConvertApp] Writing 322283 bytes to __results__.html

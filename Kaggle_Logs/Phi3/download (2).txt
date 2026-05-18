@@ -1,0 +1,121 @@
+7.1s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.1s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.1s 3 0.00s - to python to disable frozen modules.
+7.1s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+7.8s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+7.8s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+7.8s 7 0.00s - to python to disable frozen modules.
+7.8s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+9.2s 9 HF_TOKEN loaded from Kaggle secrets.
+9.2s 10 === Step 1: Install dependencies ===
+13.2s 11 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 16.8 MB/s eta 0:00:00
+13.2s 12 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 4.4 MB/s eta 0:00:00
+13.4s 13 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 968.6/968.6 kB 16.8 MB/s eta 0:00:00
+13.4s 14 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 4.4 MB/s eta 0:00:00
+17.3s 15 Cloning into '/kaggle/working/safety-circuits'...
+17.5s 16 Dependencies installed.
+17.5s 17 === Step 2: Clone source ===
+17.5s 18 Cloning into '/kaggle/working/safety-circuits'...
+17.5s 19 
+17.5s 20 Cloning into '/kaggle/working/safety-circuits'...
+18.6s 21 Cloned.
+18.6s 22 === Step 3: Load model & data ===
+22.9s 23 CUDA available: True
+22.9s 24 GPU: Tesla T4
+45.8s 25 `flash-attention` package not found, consider installing for better performance: No module named 'flash_attn'.
+45.8s 26 
+45.8s 27 `flash-attention` package not found, consider installing for better performance: No module named 'flash_attn'.
+45.8s 28 Current `flash-attention` does not support `window_size`. Either upgrade or use `attn_implementation='eager'`.
+45.8s 29 
+45.8s 30 Current `flash-attention` does not support `window_size`. Either upgrade or use `attn_implementation='eager'`.
+78.4s 31 Traceback (most recent call last):
+83.8s 32 File "<string>", line 1, in <module>
+83.8s 33 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 131, in execute_notebook
+83.8s 34 raise_for_execution_errors(nb, output_path)
+83.8s 35 File "/usr/local/lib/python3.12/dist-packages/papermill/execute.py", line 251, in raise_for_execution_errors
+83.8s 36 raise error
+83.8s 37 papermill.exceptions.PapermillExecutionError:
+83.8s 38 ---------------------------------------------------------------------------
+83.8s 39 Exception encountered at "In [1]":
+83.8s 40 ---------------------------------------------------------------------------
+83.8s 41 ValueError                                Traceback (most recent call last)
+83.8s 42 /tmp/ipykernel_23/2251290863.py in <cell line: 0>()
+83.8s 43 59 spec   = MODELS[MODEL]
+83.8s 44 60 device = "cuda" if torch.cuda.is_available() else "cpu"
+83.8s 45 ---> 61 loaded = load_model(spec, device=device)  # dtype comes from ModelSpec.dtype
+83.8s 46 62 print(f"Loaded {spec.key}: {loaded.n_layers}L × {loaded.n_heads}H  on {device}")
+83.8s 47 63
+83.8s 48 
+83.8s 49 /kaggle/working/safety-circuits/src/safety_circuits/models.py in load_model(spec, device, dtype)
+83.8s 50 58         )
+83.8s 51 59     else:
+83.8s 52 ---> 60         model = _load_via_hf_port(spec, torch_device, torch_dtype)
+83.8s 53 61
+83.8s 54 62     model.eval()
+83.8s 55 
+83.8s 56 /kaggle/working/safety-circuits/src/safety_circuits/models.py in _load_via_hf_port(spec, device, dtype)
+83.8s 57 87             rs["type"] = rs["rope_type"]
+83.8s 58 88
+83.8s 59 ---> 89     hf_model = AutoModelForCausalLM.from_pretrained(
+83.8s 60 90         spec.hf_name, config=config, torch_dtype=dtype, trust_remote_code=True
+83.8s 61 91     )
+83.8s 62 
+83.8s 63 /usr/local/lib/python3.12/dist-packages/transformers/models/auto/auto_factory.py in from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs)
+83.8s 64 363                 model_class.register_for_auto_class(auto_class=cls)
+83.8s 65 364             model_class = add_generation_mixin_to_remote_model(model_class)
+83.8s 66 --> 365             return model_class.from_pretrained(
+83.8s 67 366                 pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs, **kwargs
+83.8s 68 367             )
+83.8s 69 
+83.8s 70 /usr/local/lib/python3.12/dist-packages/transformers/modeling_utils.py in from_pretrained(cls, pretrained_model_name_or_path, config, cache_dir, ignore_mismatched_sizes, force_download, local_files_only, token, revision, use_safetensors, weights_only, *model_args, **kwargs)
+83.8s 71 4070         with ContextManagers(model_init_context):
+83.8s 72 4071             # Let's make sure we don't run the init function of buffer modules
+83.8s 73 -> 4072             model = cls(config, *model_args, **model_kwargs)
+83.8s 74 4073
+83.8s 75 4074             if hf_quantizer is not None:  # replace module with quantized modules (does not touch weights)
+83.8s 76 
+83.8s 77 ~/.cache/huggingface/modules/transformers_modules/microsoft/Phi_hyphen_3_hyphen_mini_hyphen_4k_hyphen_instruct/f39ac1d28e925b323eae81227eaba4464caced4e/modeling_phi3.py in __init__(self, config)
+83.8s 78 1161     def __init__(self, config):
+83.8s 79 1162         super().__init__(config)
+83.8s 80 -> 1163         self.model = Phi3Model(config)
+83.8s 81 1164         self.vocab_size = config.vocab_size
+83.8s 82 1165         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+83.8s 83 
+83.8s 84 ~/.cache/huggingface/modules/transformers_modules/microsoft/Phi_hyphen_3_hyphen_mini_hyphen_4k_hyphen_instruct/f39ac1d28e925b323eae81227eaba4464caced4e/modeling_phi3.py in __init__(self, config)
+83.8s 85 1002         self.embed_dropout = nn.Dropout(config.embd_pdrop)
+83.8s 86 1003         self.layers = nn.ModuleList(
+83.8s 87 -> 1004             [Phi3DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
+83.8s 88 1005         )
+83.8s 89 1006         self._attn_implementation = config._attn_implementation
+83.8s 90 
+83.8s 91 ~/.cache/huggingface/modules/transformers_modules/microsoft/Phi_hyphen_3_hyphen_mini_hyphen_4k_hyphen_instruct/f39ac1d28e925b323eae81227eaba4464caced4e/modeling_phi3.py in __init__(self, config, layer_idx)
+83.8s 92 794
+83.8s 93 795         self.config = config
+83.8s 94 --> 796         self.self_attn = PHI3_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx=layer_idx)
+83.8s 95 797
+83.8s 96 798         self.mlp = Phi3MLP(config)
+83.8s 97 
+83.8s 98 ~/.cache/huggingface/modules/transformers_modules/microsoft/Phi_hyphen_3_hyphen_mini_hyphen_4k_hyphen_instruct/f39ac1d28e925b323eae81227eaba4464caced4e/modeling_phi3.py in __init__(self, config, layer_idx)
+83.8s 99 284         self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
+83.8s 100 285         self.qkv_proj = nn.Linear(self.hidden_size, op_size, bias=False)
+83.8s 101 --> 286         self._init_rope()
+83.8s 102 287
+83.8s 103 288     def _init_rope(self):
+83.8s 104 
+83.8s 105 ~/.cache/huggingface/modules/transformers_modules/microsoft/Phi_hyphen_3_hyphen_mini_hyphen_4k_hyphen_instruct/f39ac1d28e925b323eae81227eaba4464caced4e/modeling_phi3.py in _init_rope(self)
+83.8s 106 298                 self.rotary_emb = Phi3LongRoPEScaledRotaryEmbedding(self.head_dim, self.config)
+83.8s 107 299             else:
+83.8s 108 --> 300                 raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
+83.8s 109 301
+83.8s 110 302     def forward(
+83.8s 111 
+83.8s 112 ValueError: Unknown RoPE scaling type default
+83.8s 113 
+85.8s 114 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+85.8s 115 cells[i][c] = re.sub('\\\\\|', '|', cell)
+86.0s 116 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+86.0s 117 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+91.9s 118 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+92.2s 119 [NbConvertApp] Writing 93627 bytes to __notebook__.ipynb
+94.6s 120 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+95.4s 121 [NbConvertApp] Writing 370699 bytes to __results__.html

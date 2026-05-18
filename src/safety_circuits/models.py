@@ -79,10 +79,10 @@ def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype)
     from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
     config = AutoConfig.from_pretrained(spec.hf_name, trust_remote_code=True)
-    # Phi-3's custom modeling code reads rope_scaling["type"], but transformers ≥4.43
-    # renamed that key to "rope_type" and uses "default" to mean standard RoPE.
-    # Old code only handles None (standard) or "longrope"; patch accordingly.
-    if hasattr(config, "rope_scaling") and isinstance(config.rope_scaling, dict):
+    if spec.needs_rope_patch and hasattr(config, "rope_scaling") and isinstance(config.rope_scaling, dict):
+        # Phi-3's custom modeling code reads rope_scaling["type"], but transformers ≥4.43
+        # renamed that key to "rope_type" and uses "default" to mean standard RoPE.
+        # Old code only handles None (standard) or "longrope"; patch accordingly.
         rs = config.rope_scaling
         rope_type = rs.get("rope_type", rs.get("type", "default"))
         if rope_type == "default":

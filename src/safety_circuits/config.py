@@ -19,9 +19,11 @@ class ModelSpec:
     hf_name: str
     tl_name: str | None
     refusal_first_tokens: tuple[str, ...]
-    prepend_bos: bool = True   # Qwen2.x/3.x have no BOS token; set False for those
-    dtype: str = "float32"     # preferred inference dtype; float16 for 7-8B models on T4
-    no_think: bool = False     # Qwen3 thinking mode — set True to disable <think> blocks
+    prepend_bos: bool = True        # Qwen2.x/3.x have no BOS token; set False for those
+    dtype: str = "float32"          # preferred inference dtype; float16 for 7-8B models on T4
+    no_think: bool = False          # Qwen3 thinking mode — set True to disable <think> blocks
+    needs_rope_patch: bool = False  # Phi-3: custom code reads rope_scaling["type"] but newer
+                                    # transformers uses "rope_type"; patch bridges the gap
 
     @property
     def is_tl_native(self) -> bool:
@@ -69,6 +71,7 @@ MODELS: dict[str, ModelSpec] = {
         tl_name=None,  # TL's from_pretrained loads fp32-first then casts → OOM on T4; use HF path
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
+        needs_rope_patch=True,
     ),
     "gemma3-1b": ModelSpec(
         key="gemma3-1b",

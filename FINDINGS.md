@@ -177,6 +177,51 @@ All files in `kaggle/outputs/results_Qwen3-1.7B/`:
 
 ---
 
+---
+
+## Model 3: Phi-3-mini-4k-instruct — INCONCLUSIVE
+
+### Setup
+
+| Item | Value |
+|------|-------|
+| Model | `microsoft/Phi-3-mini-4k-instruct` |
+| Architecture | 32 layers × 32 heads (1024 total heads) |
+| dtype | float16 |
+| Loading path | HF fallback (`from_pretrained_no_processing`) |
+
+### Result
+
+| Condition | Refusal rate |
+|-----------|-------------|
+| Clean (no ablation) | **0%** |
+| Top-10 heads zeroed | **0%** |
+
+**Run is inconclusive.** Clean refusal rate is 0% — Phi-3-mini refused none of the 16 eval prompts even without ablation. Head patching |Δ| values are also tiny (max ~0.036 vs ~0.9+ for Qwen), confirming no detectable safety signal.
+
+### Likely Causes
+
+1. **Incorrect model port.** `HookedTransformer.from_pretrained_no_processing` requires a manual state-dict mapping that may be wrong for Phi-3-mini's non-standard combined QKV projection. The model loads without error but the hook geometry is misaligned, producing garbage logits.
+2. **Refusal token mismatch.** If TL-level generation is broken, our refusal-margin metric cannot fire.
+
+### Status
+
+Results saved but excluded from cross-model analysis. Will revisit with a correct TL port or substitute model if time allows.
+
+### Output Files
+
+All files in `kaggle/outputs/results_Phi3-mini/`:
+
+| File | Contents |
+|------|----------|
+| `phi3_heatmap.png` | 32×32 heatmap (signal near zero throughout) |
+| `phi3_patch_z.csv` | Full ranked head sweep results (1024 rows) |
+| `phi3_resid_trace.csv` | Layer-wise residual trace (32 rows, all ~−0.17) |
+| `phi3_ablation.csv` | 0% clean → 0% ablated (inconclusive) |
+| `phi3_safety_heads.json` | Top-10 heads (not meaningful given 0% baseline) |
+
+---
+
 ## Cross-Model Comparison
 
 | Property | Qwen2.5-1.5B | Qwen3-1.7B |
@@ -197,12 +242,12 @@ All files in `kaggle/outputs/results_Qwen3-1.7B/`:
 
 ## Hypothesis Scorecard
 
-| Hypothesis | Prediction | Qwen2.5 | Qwen3 | Status |
-|-----------|------------|---------|-------|--------|
-| H1 Sparse | ≤10 heads explain most refusal | 10 → 100%→0% | 10 → 93.75%→0% | **CONFIRMED** |
-| H2 Causal | Patching flips refusal logit | L0H10: Δ=0.908 | L0H3: Δ=8.298 | **CONFIRMED** |
-| H3 Ablation | Zero top-10 → refusal rate ≤30% | 0% (stronger) | 0% (stronger) | **CONFIRMED** |
-| H4 Cross-model | Same structural pattern across models | — | L0 dominance replicated | **PARTIAL** (within-family only; need Phi-3/Mistral) |
+| Hypothesis | Prediction | Qwen2.5 | Qwen3 | Phi-3 | Status |
+|-----------|------------|---------|-------|-------|--------|
+| H1 Sparse | ≤10 heads explain most refusal | 10 → 100%→0% | 10 → 93.75%→0% | N/A (0% baseline) | **CONFIRMED** (Qwen family) |
+| H2 Causal | Patching flips refusal logit | L0H10: Δ=0.908 | L0H3: Δ=8.298 | N/A | **CONFIRMED** (Qwen family) |
+| H3 Ablation | Zero top-10 → refusal rate ≤30% | 0% (stronger) | 0% (stronger) | N/A | **CONFIRMED** (Qwen family) |
+| H4 Cross-model | Same structural pattern across models | — | L0 dominance replicated | Inconclusive (loading issue) | **PARTIAL** (within-family; Mistral/OLMo pending) |
 
 ---
 
@@ -230,10 +275,10 @@ All files in `kaggle/outputs/results_Qwen3-1.7B/`:
 |-------|-------|------|-------|--------|-------|
 | Qwen2.5-1.5B | `Qwen/Qwen2.5-1.5B-Instruct` | 1.5B | float32 | **DONE** | Baseline |
 | Qwen3-1.7B | `Qwen/Qwen3-1.7B` | 1.7B | float16 | **DONE** | L0 pattern replicated |
-| Phi-3-mini | `microsoft/Phi-3-mini-4k-instruct` | 3.8B | float16 | PENDING | Different architecture |
+| Phi-3-mini | `microsoft/Phi-3-mini-4k-instruct` | 3.8B | float16 | **INCONCLUSIVE** | 0% baseline refusal; HF port broken |
+| Mistral-7B | `mistralai/Mistral-7B-Instruct-v0.1` | 7B | float16 | PENDING | TL-native; next up |
 | OLMo-2-7B | `allenai/OLMo-2-1124-7B-Instruct` | 7B | float16 | PENDING | No HF auth needed |
 | Gemma-3-1B | `google/gemma-3-1b-it` | 1B | float32 | PENDING | **GATED** — needs HF token + Google terms |
-| Mistral-7B | `mistralai/Mistral-7B-Instruct-v0.1` | 7B | float16 | PENDING | No HF auth needed |
 
 Change `SC_MODEL` in the Kaggle notebook cell to run each model.
 

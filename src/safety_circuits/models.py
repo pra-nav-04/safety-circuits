@@ -98,7 +98,8 @@ def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype)
             rs["type"] = rope_type
 
     hf_model = AutoModelForCausalLM.from_pretrained(
-        spec.hf_name, config=config, torch_dtype=dtype, trust_remote_code=True
+        spec.hf_name, config=config, torch_dtype=dtype, trust_remote_code=True,
+        low_cpu_mem_usage=True,  # stream weights into place — avoids a full extra RAM copy
     )
     tokenizer = AutoTokenizer.from_pretrained(spec.hf_name, trust_remote_code=True)
 

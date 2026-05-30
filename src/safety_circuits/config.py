@@ -88,17 +88,21 @@ MODELS: dict[str, ModelSpec] = {
     ),
     # ── Gemma family: 3 generations (generational sweep) — all GATED ─────────
     # fp32 for Gemma-1/2: gemma-2 uses attention logit soft-capping that can NaN in fp16.
+    # HF-port (tl_name=None): TL's native loader is fp32-first → a 2B model OOMs the
+    # ~13GB T4 RAM at load. The HF-port streams weights (low_cpu_mem_usage) → fits.
     "gemma1-2b": ModelSpec(
         key="gemma1-2b",
         hf_name="google/gemma-2b-it",
-        tl_name="google/gemma-2b-it",  # GATED: accept terms at hf.co/google/gemma-2b-it
+        tl_name=None,  # GATED: accept terms at hf.co/google/gemma-2b-it
         refusal_first_tokens=_REFUSAL,
+        dtype="float16",  # Gemma-1 has no soft-capping; fp16 is safe and halves RAM
     ),
     "gemma2-2b": ModelSpec(
         key="gemma2-2b",
         hf_name="google/gemma-2-2b-it",
-        tl_name="google/gemma-2-2b-it",  # GATED: accept terms at hf.co/google/gemma-2-2b-it
+        tl_name=None,  # GATED: accept terms at hf.co/google/gemma-2-2b-it
         refusal_first_tokens=_REFUSAL,
+        dtype="float32",  # Gemma-2 soft-capping is unstable in fp16; T4 has no bf16
     ),
     "gemma3-1b": ModelSpec(
         key="gemma3-1b",

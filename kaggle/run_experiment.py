@@ -69,12 +69,15 @@ START    = time.time()
 _COST = {"gemma3-1b": 1, "qwen": 2, "qwen3": 3, "falcon3-1b": 4,
          "olmo2-1b": 5, "tinyllama": 6, "llama3-3b": 7, "phi3": 8}
 
-# Excluded from the DEFAULT loop (still runnable explicitly via SC_MODELS):
-#   tinyllama — not in the pinned TransformerLens OFFICIAL_MODEL_NAMES → load always
-#               raises ValueError (see Kaggle_Logs/Qwen2.5-1.5B-Instruct/download.txt).
-#   phi3      — HF-port load tends to OOM and *kill the kernel* (uncatchable; would
-#               abort the whole loop), see Kaggle_Logs/Phi3/download.txt.
-_DEFAULT_EXCLUDE = {"tinyllama", "phi3"}
+# Excluded from the DEFAULT loop (still runnable explicitly via SC_MODELS).
+# All four are unsupported/broken under the pinned TransformerLens; they load-fail
+# with ValueError ("... not found. Valid official model names: ...") or crash:
+#   tinyllama   — not in TL's OFFICIAL_MODEL_NAMES.
+#   falcon3-1b  — not in TL's OFFICIAL_MODEL_NAMES (confirmed at runtime).
+#   olmo2-1b    — only the *base* allenai/OLMo-2-0425-1B is in TL's list, not -Instruct.
+#   phi3        — listed, but the HF-port produces garbage logits / OOM-kills the kernel.
+# Viable default set: gemma3-1b, qwen, qwen3, llama3-3b.
+_DEFAULT_EXCLUDE = {"tinyllama", "phi3", "falcon3-1b", "olmo2-1b"}
 
 
 def _models_to_run() -> list[str]:

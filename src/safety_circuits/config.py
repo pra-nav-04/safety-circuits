@@ -84,17 +84,22 @@ MODELS: dict[str, ModelSpec] = {
         dtype="float16",
     ),
     # ── extended sweep ─────────────────────────────────────────────────────────
+    # NOTE: both UNSUPPORTED by the pinned TransformerLens — neither is in its
+    # OFFICIAL_MODEL_NAMES (the HF-port path checks that list too), so load raises
+    # ValueError. Confirmed at runtime for Falcon3; OLMo-2 lists only the *base*
+    # allenai/OLMo-2-0425-1B, not the -Instruct. Kept for reference; excluded from
+    # the default run.
     "falcon3-1b": ModelSpec(
         key="falcon3-1b",
         hf_name="tiiuae/Falcon3-1B-Instruct",
-        tl_name=None,  # Falcon3 not in TL's native list; use HF path
+        tl_name=None,  # Falcon3 not in TL's native list; HF path also rejects it
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),
     "olmo2-1b": ModelSpec(
         key="olmo2-1b",
         hf_name="allenai/OLMo-2-0425-1B-Instruct",
-        tl_name=None,  # OLMo-2 not in TL's native list; use HF path
+        tl_name=None,  # only the base OLMo-2-0425-1B is TL-supported, not -Instruct
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),

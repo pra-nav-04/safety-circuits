@@ -68,10 +68,20 @@ START    = time.time()
 _COST = {"gemma3-1b": 1, "qwen": 2, "qwen3": 3, "falcon3-1b": 4,
          "olmo2-1b": 5, "tinyllama": 6, "llama3-3b": 7, "phi3": 8}
 
+# Excluded from the DEFAULT loop (still runnable explicitly via SC_MODELS):
+#   tinyllama — not in the pinned TransformerLens OFFICIAL_MODEL_NAMES → load always
+#               raises ValueError (see Kaggle_Logs/Qwen2.5-1.5B-Instruct/download.txt).
+#   phi3      — HF-port load tends to OOM and *kill the kernel* (uncatchable; would
+#               abort the whole loop), see Kaggle_Logs/Phi3/download.txt.
+_DEFAULT_EXCLUDE = {"tinyllama", "phi3"}
+
 
 def _models_to_run() -> list[str]:
     env = os.environ.get("SC_MODELS", "").strip()
-    keys = [k.strip() for k in env.split(",") if k.strip()] if env else list(MODELS)
+    if env:  # explicit request — honour it exactly (incl. tinyllama/phi3 opt-in)
+        keys = [k.strip() for k in env.split(",") if k.strip()]
+    else:
+        keys = [k for k in MODELS if k not in _DEFAULT_EXCLUDE]
     keys = [k for k in keys if k in MODELS]
     return sorted(keys, key=lambda k: _COST.get(k, 99))
 
@@ -246,6 +256,9 @@ def main() -> None:
 
     summaries: list[dict] = []
     log(f"Device {DEVICE}; running (cheapest-first): {keys}")
+    if not os.environ.get("SC_MODELS", "").strip():
+        log(f"(excluded from default loop: {sorted(_DEFAULT_EXCLUDE)} — "
+            f"opt in with e.g. SC_MODELS=phi3)")
 
     for k in keys:
         if SKIP_EXIST and (OUT_ROOT / k / "_DONE.json").exists():

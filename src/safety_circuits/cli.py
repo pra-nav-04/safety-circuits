@@ -55,7 +55,7 @@ def main() -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     mvp = sub.add_parser("run-mvp", help="end-to-end thin slice")
-    mvp.add_argument("--model", default="tinyllama", choices=list(MODELS))
+    mvp.add_argument("--model", default="qwen", choices=list(MODELS))
     mvp.add_argument("--device", default="auto")
     mvp.add_argument("--dtype", default="float32")
     mvp.add_argument("--n_pairs", type=int, default=8)

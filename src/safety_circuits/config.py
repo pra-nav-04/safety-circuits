@@ -34,7 +34,11 @@ class ModelSpec:
 _REFUSAL = ("I", "Sorry", "As", "I'm", "Unfortunately")
 
 MODELS: dict[str, ModelSpec] = {
-    # ── baseline (completed) ────────────────────────────────────────────────
+    # ── baseline ────────────────────────────────────────────────────────────
+    # NOTE: NOT loadable by the pinned TransformerLens version — TinyLlama is not in
+    # its OFFICIAL_MODEL_NAMES, so both the native and HF-port paths raise ValueError
+    # (see Kaggle_Logs/Qwen2.5-1.5B-Instruct/download.txt). Kept for reference/history;
+    # excluded from the default multi-model run (opt in via SC_MODELS=tinyllama).
     "tinyllama": ModelSpec(
         key="tinyllama",
         hf_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0",

@@ -191,7 +191,11 @@ Then download: `python scripts/kaggle_api.py output` (→ `results/kaggle/`), or
 
 | Env var | Default | Effect |
 |---|---|---|
-| `SC_MODELS` | all (cheapest-first) | comma list to subset / resume, e.g. `llama3-3b,phi3` |
+| `SC_MODELS` | default set (cheapest-first) | comma list to subset / resume, e.g. `llama3-3b,phi3` |
+
+> **Default model set** (when `SC_MODELS` is unset): `gemma3-1b, qwen, qwen3, falcon3-1b, olmo2-1b, llama3-3b`. **`tinyllama` and `phi3` are excluded by default** — TinyLlama isn't loadable by the pinned TransformerLens (guaranteed `ValueError`) and Phi-3 tends to OOM-*kill the kernel* (uncatchable, would abort the loop). Opt in deliberately with `SC_MODELS=phi3`.
+>
+> **Jailbreak (G9) needs gated data:** `walledai/HarmBench` is gated — accept its terms at hf.co/datasets/walledai/HarmBench under the account whose `HF_TOKEN` the run uses, else the jailbreak add-on is skipped with a clear message (non-fatal; everything else still runs).
 | `SC_SKIP_EXISTING` | `0` | skip models with a `_DONE.json` already present (resume) |
 | `SC_N_PAIRS` | `32` | matched pairs for the main z-sweep |
 | `SC_HEAVY_PAIRS` | `8` | pairs for the doubler sweeps (last-token, pattern) — bounds cost |

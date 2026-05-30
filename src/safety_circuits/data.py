@@ -65,7 +65,20 @@ def load_advbench(limit: int | None = None) -> list[Prompt]:
 def load_harmbench(limit: int | None = None) -> list[Prompt]:
     from datasets import load_dataset
 
-    ds = load_dataset("walledai/HarmBench", "standard", split="train")
+    # walledai/HarmBench is gated: needs HF_TOKEN whose account accepted the terms
+    # at hf.co/datasets/walledai/HarmBench. Try the "standard" config, fall back to
+    # the default config, and surface a clear message on auth/config failure.
+    try:
+        ds = load_dataset("walledai/HarmBench", "standard", split="train")
+    except Exception as e:  # noqa: BLE001
+        try:
+            ds = load_dataset("walledai/HarmBench", split="train")
+        except Exception:
+            raise RuntimeError(
+                "Could not load walledai/HarmBench (jailbreak stress test). It is gated — "
+                "accept the terms at https://huggingface.co/datasets/walledai/HarmBench and "
+                "ensure HF_TOKEN is set for this run. Original error: " + repr(e)
+            ) from e
     out = []
     for i, row in enumerate(ds):
         if limit and i >= limit:

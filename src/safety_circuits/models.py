@@ -110,6 +110,13 @@ def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype)
         dtype=dtype,
         trust_remote_code=True,
     )
+    # Free the transient HF copy now (TL has its own weights). Lowers the peak that
+    # OOM-kills the kernel on larger ports (Phi-3, Llama-3.2) and helps the next model.
+    import gc
+    del hf_model
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return model
 
 

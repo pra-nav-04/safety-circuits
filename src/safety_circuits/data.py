@@ -141,6 +141,29 @@ def _extract_first_human(transcript: str) -> str | None:
     return after.split("Assistant:")[0].strip() or None
 
 
+# ------------------------------------------------ WikiText-2 (capability control)
+def load_wikitext2(limit: int = 64, min_chars: int = 200) -> list[str]:
+    """Plain-text snippets for the perplexity / capability-preservation control.
+
+    Returns WikiText-2 paragraphs (test split). Perplexity on these, measured
+    clean vs ablated, is our check that ablating safety heads doesn't just break
+    the model (H3: refusal should collapse while perplexity barely moves).
+    """
+    from datasets import load_dataset
+
+    ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
+    out = []
+    for row in ds:
+        t = row["text"].strip()
+        # skip blank lines and section headers like " = = Heading = = "
+        if len(t) < min_chars or t.startswith("="):
+            continue
+        out.append(t)
+        if len(out) >= limit:
+            break
+    return out
+
+
 # ---------------------------------------------------- pair construction for patching
 def build_matched_pairs(
     harm: list[Prompt],

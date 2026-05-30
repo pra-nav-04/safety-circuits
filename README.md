@@ -7,7 +7,7 @@
 
 ## What this repo does
 
-Given a small instruct LM (TinyLlama-1.1B-Chat or Phi-3-mini), this code:
+Given a small instruct LM (Qwen2.5-1.5B, Qwen3-1.7B, Gemma-3-1B, Llama-3.2-3B, and others — see `src/safety_circuits/config.py`), this code:
 
 1. Runs the model on a curated set of toxic/harmful prompts and matched harmless prompts.
 2. Detects whether the model refused (logit on refusal tokens + regex backstop).
@@ -29,8 +29,10 @@ make build         # builds the CUDA image
 make shell         # drops you into a container with deps installed
 # inside the container:
 pytest -q          # smoke tests (CPU, < 30s)
-python -m safety_circuits.scripts.run_mvp --model tinyllama --n_prompts 16
+python -m safety_circuits.cli run-mvp --model qwen --n_pairs 16 --top_k 10
 ```
+
+(`--model` takes any key from `MODELS` in `config.py`: `qwen`, `qwen3`, `gemma3-1b`, `llama3-3b`, `phi3`, `falcon3-1b`, `olmo2-1b`, `tinyllama`.)
 
 ## Layout
 
@@ -38,7 +40,7 @@ python -m safety_circuits.scripts.run_mvp --model tinyllama --n_prompts 16
 safety-circuits/
 ├── src/safety_circuits/    # the importable package
 │   ├── config.py           # model configs, paths, defaults
-│   ├── models.py           # load TinyLlama / Phi-3 into HookedTransformer
+│   ├── models.py           # load checkpoints into HookedTransformer (TL-native + HF-port path)
 │   ├── data.py             # unified loaders for HH-RLHF / AdvBench / HarmBench / RTP
 │   ├── refusal.py          # refusal-detection metric
 │   ├── activations.py      # cache hooks, residual-stream snapshots
@@ -52,11 +54,22 @@ safety-circuits/
 ├── data/{raw,processed}/   # cached datasets (gitignored)
 ├── results/                # figures + activation dumps (gitignored)
 ├── docker/                 # Dockerfile, compose
+├── kaggle/                 # Kaggle GPU kernel runner (run_experiment.py)
 ├── pyproject.toml
 ├── Makefile
-└── RESEARCH_PLAN.md        # hypotheses, experiments, success criteria
+├── RESEARCH_PLAN.md        # hypotheses, experiments, success criteria
+├── FINDINGS.md             # results so far (per-model + cross-model comparison)
+└── PROJECT_PLAN.md         # living completion tracker (status, gaps, timeline)
 ```
 
 ## Status
 
-Scaffold. See `RESEARCH_PLAN.md` for the experiment plan and `notebooks/` for the executable thread.
+**Pipeline complete; cross-model experiments largely done; paper + presentations in progress.**
+
+- The full patching + ablation pipeline works end-to-end and has been run on Kaggle GPUs.
+- **Core result reproduced on 4 models** (Qwen2.5-1.5B, Qwen3-1.7B, Gemma-3-1B, Llama-3.2-3B): a sparse set of attention heads causally produces refusal, and zero-ablating the top-K collapses it. See `FINDINGS.md`.
+- **In flight:** perplexity/capability control, Llama K-sweep, Phi-3 port fix, Falcon3 + OLMo-2 runs, refusal-metric audit, jailbreak stress test.
+
+See `PROJECT_PLAN.md` for the full status/gap tracker and timeline, `RESEARCH_PLAN.md` for hypotheses and method, and `notebooks/` for the executable thread.
+
+> **Models note:** the original proposal/pitch named TinyLlama and Phi-3. During E3 calibration TinyLlama under-refused and the Phi-3 TransformerLens port was unreliable, so the study moved to the Qwen/Gemma/Llama instruct family (a swap anticipated in the `RESEARCH_PLAN.md` risk table). Phi-3 remains configured and is being repaired for cross-model coverage.

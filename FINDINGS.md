@@ -426,6 +426,8 @@ All files in `results/kaggle/results_Llama3-3b/`:
 
 ## Next Steps
 
+> The authoritative, prioritised list of remaining work (with effort estimates, acceptance criteria, and a deadline-driven timeline) now lives in **`PROJECT_PLAN.md`**. The items below are the research-side summary.
+
 ### Multi-model sweep (H4 — cross-model replication)
 
 | Model | HF ID | Size | dtype | Status | Notes |

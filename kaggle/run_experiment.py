@@ -62,7 +62,7 @@ if torch.cuda.is_available():
 
 from safety_circuits.config import MODELS
 from safety_circuits.models import load_model
-from safety_circuits.data import load_advbench, load_hh_harmless, build_matched_pairs
+from safety_circuits.data import load_advbench, load_hh_harmless, build_matched_pairs, load_wikitext2
 
 MODEL    = os.environ.get("SC_MODEL", "qwen")
 N_PAIRS  = int(os.environ.get("SC_N_PAIRS", "32"))
@@ -107,17 +107,28 @@ plot_heatmap(grid, title=f"{spec.key}: per-head |Δ refusal-margin|",
              save_to=str(OUT / f"{MODEL}_heatmap.png"))
 print("Heatmap saved.")
 
-print("=== Step 7: Ablation ===")
+print("=== Step 7: Ablation (+ perplexity capability control) ===")
 from safety_circuits.ablation import HeadRef, evaluate_ablation
 
 top   = agg[agg["component"] == "z"].head(TOP_K)
 heads = [HeadRef(int(r.layer), int(r.head)) for r in top.itertuples()]
 print(f"Top-{TOP_K} candidate heads: {[(h.layer, h.head) for h in heads]}")
 
+# WikiText-2 slice for the H3 capability-preservation control: refusal should
+# collapse under ablation while general-language perplexity barely moves.
+ppl_texts = load_wikitext2(limit=int(os.environ.get("SC_PPL_TEXTS", "64")))
+print(f"Loaded {len(ppl_texts)} WikiText-2 snippets for perplexity control")
+
 eval_prompts = [h.text for h, _ in pairs[N_PAIRS // 2:]]
-report = evaluate_ablation(loaded, heads, eval_prompts, mode="zero")
-pd.DataFrame([report.__dict__]).to_csv(OUT / f"{MODEL}_ablation.csv", index=False)
+report = evaluate_ablation(loaded, heads, eval_prompts, mode="zero", perplexity_texts=ppl_texts)
+
+row = dict(report.__dict__)
+row["perplexity_pct_change"] = report.perplexity_pct_change
+pd.DataFrame([row]).to_csv(OUT / f"{MODEL}_ablation.csv", index=False)
 print(f"Refusal rate — clean: {report.refusal_rate_clean:.2%}  ablated: {report.refusal_rate_ablated:.2%}")
+if report.perplexity_clean is not None:
+    print(f"Perplexity   — clean: {report.perplexity_clean:.3f}  ablated: {report.perplexity_ablated:.3f}  "
+          f"(Δ {report.perplexity_pct_change:+.2f}%)")
 
 import json
 top_heads = [{"layer": h.layer, "head": h.head} for h in heads]

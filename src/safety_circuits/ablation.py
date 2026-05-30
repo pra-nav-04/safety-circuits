@@ -36,6 +36,13 @@ class AblationReport:
     perplexity_clean: float | None
     perplexity_ablated: float | None
 
+    @property
+    def perplexity_pct_change(self) -> float | None:
+        """Δ perplexity as a percentage of clean (H3 target: ≤ 5%). None if unmeasured."""
+        if self.perplexity_clean is None or self.perplexity_ablated is None:
+            return None
+        return 100.0 * (self.perplexity_ablated - self.perplexity_clean) / self.perplexity_clean
+
 
 def _build_head_ablation_hooks(
     heads: list[HeadRef],
@@ -97,8 +104,15 @@ def evaluate_ablation(
     eval_prompts: list[str],
     mode: AblationMode = "zero",
     mean_cache: dict[str, torch.Tensor] | None = None,
+    perplexity_texts: list[str] | None = None,
 ) -> AblationReport:
-    """Refusal rate, clean vs ablated, on `eval_prompts`."""
+    """Refusal rate, clean vs ablated, on `eval_prompts`.
+
+    If `perplexity_texts` is given (e.g. a WikiText-2 slice from
+    `data.load_wikitext2`), also reports token-level perplexity clean vs ablated
+    on those texts — the H3 capability-preservation control: refusal should
+    collapse while general-language perplexity barely moves.
+    """
     # clean
     clean_refused = sum(
         score_refusal(loaded, p, generate_continuation=True).refused_regex
@@ -122,22 +136,39 @@ def evaluate_ablation(
         from .refusal import regex_refusal
         abl_refused += int(regex_refusal(continuation))
 
+    # capability-preservation control (optional)
+    ppl_clean = ppl_ablated = None
+    if perplexity_texts:
+        ppl_clean = perplexity(loaded, perplexity_texts)
+        ppl_ablated = perplexity(loaded, perplexity_texts, fwd_hooks=hooks)
+
     n = len(eval_prompts)
     return AblationReport(
         refusal_rate_clean=clean_refused / n,
         refusal_rate_ablated=abl_refused / n,
-        perplexity_clean=None,
-        perplexity_ablated=None,
+        perplexity_clean=ppl_clean,
+        perplexity_ablated=ppl_ablated,
     )
 
 
 @torch.no_grad()
-def perplexity(loaded: LoadedModel, texts: Iterable[str]) -> float:
-    """Token-level perplexity on a stream of texts. Cheap proxy for capability loss."""
+def perplexity(
+    loaded: LoadedModel,
+    texts: Iterable[str],
+    fwd_hooks: list | None = None,
+) -> float:
+    """Token-level perplexity on a stream of texts. Cheap proxy for capability loss.
+
+    Pass `fwd_hooks` (the same `(name, hook)` list produced for ablation) to measure
+    perplexity with those hooks active — i.e. perplexity *under ablation*.
+    """
     nll, n = 0.0, 0
     for t in texts:
         tokens = loaded.model.to_tokens(t, prepend_bos=True).to(loaded.device)
-        logits = loaded.model(tokens)
+        if fwd_hooks:
+            logits = loaded.model.run_with_hooks(tokens, fwd_hooks=fwd_hooks)
+        else:
+            logits = loaded.model(tokens)
         log_probs = torch.log_softmax(logits[0, :-1], dim=-1)
         target = tokens[0, 1:]
         nll += -log_probs.gather(-1, target.unsqueeze(-1)).sum().item()

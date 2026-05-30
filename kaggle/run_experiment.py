@@ -65,19 +65,27 @@ OUT_ROOT.mkdir(parents=True, exist_ok=True)
 DEVICE   = "cuda" if torch.cuda.is_available() else "cpu"
 START    = time.time()
 
-# cheapest-first ordering (≈ n_layers × n_heads); unknown keys sort last
-_COST = {"gemma3-1b": 1, "qwen": 2, "qwen3": 3, "falcon3-1b": 4,
-         "olmo2-1b": 5, "tinyllama": 6, "llama3-3b": 7, "phi3": 8}
+# cheapest-first ordering (≈ params / head-count); unknown keys sort last
+_COST = {
+    "gemma3-1b": 1, "llama3.2-1b": 2,
+    "qwen2.5": 3, "qwen2-1.5b": 4, "qwen1.5-1.8b": 5, "qwen3": 6,
+    "gemma1-2b": 7, "gemma2-2b": 8,
+    "llama3-3b": 9,
+    # excluded/probe (sort last)
+    "falcon3-1b": 20, "olmo2-1b": 21, "tinyllama": 22, "phi3": 23, "gemma4-e2b": 24,
+}
 
 # Excluded from the DEFAULT loop (still runnable explicitly via SC_MODELS).
-# All four are unsupported/broken under the pinned TransformerLens; they load-fail
-# with ValueError ("... not found. Valid official model names: ...") or crash:
+# All unsupported/broken under the pinned TransformerLens (load-fail with ValueError
+# "... not found. Valid official model names: ..." or crash):
 #   tinyllama   — not in TL's OFFICIAL_MODEL_NAMES.
 #   falcon3-1b  — not in TL's OFFICIAL_MODEL_NAMES (confirmed at runtime).
 #   olmo2-1b    — only the *base* allenai/OLMo-2-0425-1B is in TL's list, not -Instruct.
 #   phi3        — listed, but the HF-port produces garbage logits / OOM-kills the kernel.
-# Viable default set: gemma3-1b, qwen, qwen3, llama3-3b.
-_DEFAULT_EXCLUDE = {"tinyllama", "phi3", "falcon3-1b", "olmo2-1b"}
+#   gemma4-e2b  — Gemma 4 not in TL's list + multimodal/MoE arch; probe only.
+# Default supported set (9): qwen1.5-1.8b, qwen2-1.5b, qwen2.5, qwen3,
+#                            gemma1-2b, gemma2-2b, gemma3-1b, llama3.2-1b, llama3-3b.
+_DEFAULT_EXCLUDE = {"tinyllama", "phi3", "falcon3-1b", "olmo2-1b", "gemma4-e2b"}
 
 
 def _models_to_run() -> list[str]:

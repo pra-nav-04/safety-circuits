@@ -57,7 +57,7 @@ nb01 = nb([
     ),
     md("## TinyLlama load + one refusal\n"),
     code(
-        "loaded = load_model(MODELS['qwen'], device='auto', dtype='float32')\n"
+        "loaded = load_model(MODELS['qwen2.5'], device='auto', dtype='float32')\n"
         "print(f'n_layers={loaded.n_layers}, n_heads={loaded.n_heads}')\n"
     ),
     code(
@@ -121,7 +121,7 @@ nb03 = nb([
         "import pandas as pd\n"
     ),
     code(
-        "loaded = load_model(MODELS['qwen'])\n"
+        "loaded = load_model(MODELS['qwen2.5'])\n"
         "pairs = load_jsonl(REPO_ROOT / 'data' / 'processed' / 'pairs.jsonl')[:50]\n"
     ),
     code(
@@ -156,7 +156,7 @@ nb04 = nb([
         "from safety_circuits.data import load_jsonl\n"
     ),
     code(
-        "loaded = load_model(MODELS['qwen'])\n"
+        "loaded = load_model(MODELS['qwen2.5'])\n"
         "pairs = load_jsonl(REPO_ROOT / 'data' / 'processed' / 'pairs.jsonl')[:8]  # start tiny\n"
     ),
     md("### Coarse trace first — which *layer band* matters?\n"),
@@ -177,10 +177,10 @@ nb04 = nb([
         "grid = head_heatmap(agg, n_layers=loaded.n_layers, n_heads=loaded.n_heads)\n"
         "RESULTS_DIR.mkdir(exist_ok=True)\n"
         "plot_heatmap(grid, title='TinyLlama: per-head |Δ refusal-margin|',\n"
-        "             save_to=str(RESULTS_DIR / 'qwen_heatmap.png'))\n"
+        "             save_to=str(RESULTS_DIR / 'qwen2.5_heatmap.png'))\n"
     ),
     code(
-        "agg.to_csv(RESULTS_DIR / 'qwen_patch_z.csv', index=False)\n"
+        "agg.to_csv(RESULTS_DIR / 'qwen2.5_patch_z.csv', index=False)\n"
         "print('Top candidates:')\n"
         "print(agg[agg.component == 'z'].head(10))\n"
     ),
@@ -197,8 +197,8 @@ nb05 = nb([
         "import pandas as pd\n"
     ),
     code(
-        "loaded = load_model(MODELS['qwen'])\n"
-        "agg = pd.read_csv(RESULTS_DIR / 'qwen_patch_z.csv')\n"
+        "loaded = load_model(MODELS['qwen2.5'])\n"
+        "agg = pd.read_csv(RESULTS_DIR / 'qwen2.5_patch_z.csv')\n"
         "top = agg[agg.component == 'z'].head(10)\n"
         "heads = [HeadRef(int(r.layer), int(r.head)) for r in top.itertuples()]\n"
         "heads\n"
@@ -252,7 +252,7 @@ nb06 = nb([
     ),
     md("## 2. Build the sheet (runs the model) -> `<model>_audit.csv`\n"),
     code(
-        "MODEL = 'qwen'\n"
+        "MODEL = 'qwen2.5'\n"
         "loaded = load_model(MODELS[MODEL])\n"
         "sheet = build_audit_sheet(loaded, audit_prompts, RESULTS_DIR / f'{MODEL}_audit.csv')\n"
         "print('Wrote', sheet)\n"

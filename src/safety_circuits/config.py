@@ -45,14 +45,30 @@ MODELS: dict[str, ModelSpec] = {
         tl_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
         refusal_first_tokens=_REFUSAL,
     ),
-    "qwen": ModelSpec(
-        key="qwen",
+    # ── Qwen family: 4 generations at ~constant size (generational sweep) ────
+    "qwen1.5-1.8b": ModelSpec(
+        key="qwen1.5-1.8b",
+        hf_name="Qwen/Qwen1.5-1.8B-Chat",
+        tl_name="Qwen/Qwen1.5-1.8B-Chat",
+        refusal_first_tokens=_REFUSAL,
+        prepend_bos=False,
+        dtype="float16",
+    ),
+    "qwen2-1.5b": ModelSpec(
+        key="qwen2-1.5b",
+        hf_name="Qwen/Qwen2-1.5B-Instruct",
+        tl_name="Qwen/Qwen2-1.5B-Instruct",
+        refusal_first_tokens=_REFUSAL,
+        prepend_bos=False,
+        dtype="float16",
+    ),
+    "qwen2.5": ModelSpec(
+        key="qwen2.5",
         hf_name="Qwen/Qwen2.5-1.5B-Instruct",
         tl_name="Qwen/Qwen2.5-1.5B-Instruct",
         refusal_first_tokens=_REFUSAL,
         prepend_bos=False,
     ),
-    # ── planned multi-model sweep ───────────────────────────────────────────
     "qwen3": ModelSpec(
         key="qwen3",
         hf_name="Qwen/Qwen3-1.7B",
@@ -70,11 +86,33 @@ MODELS: dict[str, ModelSpec] = {
         dtype="float16",
         needs_rope_patch=True,
     ),
+    # ── Gemma family: 3 generations (generational sweep) — all GATED ─────────
+    # fp32 for Gemma-1/2: gemma-2 uses attention logit soft-capping that can NaN in fp16.
+    "gemma1-2b": ModelSpec(
+        key="gemma1-2b",
+        hf_name="google/gemma-2b-it",
+        tl_name="google/gemma-2b-it",  # GATED: accept terms at hf.co/google/gemma-2b-it
+        refusal_first_tokens=_REFUSAL,
+    ),
+    "gemma2-2b": ModelSpec(
+        key="gemma2-2b",
+        hf_name="google/gemma-2-2b-it",
+        tl_name="google/gemma-2-2b-it",  # GATED: accept terms at hf.co/google/gemma-2-2b-it
+        refusal_first_tokens=_REFUSAL,
+    ),
     "gemma3-1b": ModelSpec(
         key="gemma3-1b",
         hf_name="google/gemma-3-1b-it",
         tl_name="google/gemma-3-1b-it",  # TL-native; GATED: accept terms at hf.co/google/gemma-3-1b-it
         refusal_first_tokens=_REFUSAL,
+    ),
+    # ── Llama family: 2 sizes (size sweep) — GATED ───────────────────────────
+    "llama3.2-1b": ModelSpec(
+        key="llama3.2-1b",
+        hf_name="meta-llama/Llama-3.2-1B-Instruct",
+        tl_name=None,  # HF path (mirrors llama3-3b). GATED: accept terms at hf.co/meta-llama/Llama-3.2-1B-Instruct
+        refusal_first_tokens=_REFUSAL,
+        dtype="float16",
     ),
     "llama3-3b": ModelSpec(
         key="llama3-3b",
@@ -100,6 +138,18 @@ MODELS: dict[str, ModelSpec] = {
         key="olmo2-1b",
         hf_name="allenai/OLMo-2-0425-1B-Instruct",
         tl_name=None,  # only the base OLMo-2-0425-1B is TL-supported, not -Instruct
+        refusal_first_tokens=_REFUSAL,
+        dtype="float16",
+    ),
+    # ── probe only ───────────────────────────────────────────────────────────
+    # Gemma 4 (released 2026-04-02). Expected to FAIL under the pinned TL: not in
+    # OFFICIAL_MODEL_NAMES, and it's a multimodal "any-to-any"/MoE arch the HF-port
+    # (AutoModelForCausalLM) can't load either. Kept as a 1-min preflight probe to
+    # re-check whenever TL adds support: SC_PREFLIGHT=1 SC_MODELS=gemma4-e2b.
+    "gemma4-e2b": ModelSpec(
+        key="gemma4-e2b",
+        hf_name="google/gemma-4-E2B-it",
+        tl_name=None,
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),

@@ -193,7 +193,10 @@ Then download: `python scripts/kaggle_api.py output` (→ `results/kaggle/`), or
 |---|---|---|
 | `SC_MODELS` | default set (cheapest-first) | comma list to subset / resume, e.g. `llama3-3b,phi3` |
 
-> **Default model set** (when `SC_MODELS` is unset): `gemma3-1b, qwen, qwen3, falcon3-1b, olmo2-1b, llama3-3b`. **`tinyllama` and `phi3` are excluded by default** — TinyLlama isn't loadable by the pinned TransformerLens (guaranteed `ValueError`) and Phi-3 tends to OOM-*kill the kernel* (uncatchable, would abort the loop). Opt in deliberately with `SC_MODELS=phi3`.
+> **Default model set** (when `SC_MODELS` is unset) — 9 TL-supported models for within-family generational sweeps:
+> `qwen1.5-1.8b, qwen2-1.5b, qwen2.5, qwen3` (Qwen ×4 generations) · `gemma1-2b, gemma2-2b, gemma3-1b` (Gemma ×3 generations) · `llama3.2-1b, llama3-3b` (Llama ×2 sizes).
+> **Run one model per session** via `SC_MODELS="<key>"` — loading several back-to-back OOMs the ~13 GB system RAM (kernel restart). Gemma + Llama keys are gated (accept terms under your HF token).
+> **Excluded** (unsupported by the pinned TransformerLens / broken): `tinyllama`, `falcon3-1b`, `olmo2-1b` (not in `OFFICIAL_MODEL_NAMES`), `phi3` (garbage logits / OOM-kills kernel), `gemma4-e2b` (Gemma 4: not in TL list + multimodal arch — kept as a 1-min preflight probe). Opt into any via `SC_MODELS=<key>`.
 >
 > **Jailbreak (G9) needs gated data:** `walledai/HarmBench` is gated — accept its terms at hf.co/datasets/walledai/HarmBench under the account whose `HF_TOKEN` the run uses, else the jailbreak add-on is skipped with a clear message (non-fatal; everything else still runs).
 | `SC_SKIP_EXISTING` | `0` | skip models with a `_DONE.json` already present (resume) |

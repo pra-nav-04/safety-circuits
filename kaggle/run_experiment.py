@@ -57,6 +57,7 @@ DO_LASTTOK  = os.environ.get("SC_LASTTOK", "1") == "1"
 DO_PATTERN  = os.environ.get("SC_PATTERN", "1") == "1"
 DO_JAILBRK  = os.environ.get("SC_JAILBREAK", "1") == "1"
 SKIP_EXIST  = os.environ.get("SC_SKIP_EXISTING", "0") == "1"
+PREFLIGHT   = os.environ.get("SC_PREFLIGHT", "0") == "1"   # load + coherence + 1 refusal, no sweeps
 
 WORK     = pathlib.Path(os.environ.get("SC_OUT", "/kaggle/working"))
 OUT_ROOT = WORK / "results"
@@ -80,6 +81,8 @@ def _models_to_run() -> list[str]:
     env = os.environ.get("SC_MODELS", "").strip()
     if env:  # explicit request — honour it exactly (incl. tinyllama/phi3 opt-in)
         keys = [k.strip() for k in env.split(",") if k.strip()]
+    elif PREFLIGHT:  # preflight checks EVERY model so you see which load and which don't
+        keys = list(MODELS)
     else:
         keys = [k for k in MODELS if k not in _DEFAULT_EXCLUDE]
     keys = [k for k in keys if k in MODELS]
@@ -116,6 +119,22 @@ def run_one(model_key: str, log) -> dict:
                 json.dumps([{"probe": p, "continuation": c} for p, c in probes], indent=2))
             summary["coherence"] = [c for _, c in probes]
             log(f"[{model_key}] coherence: " + " | ".join(c.strip()[:40] for _, c in probes))
+
+        # ── preflight: just confirm load + that it refuses one harmful prompt ──
+        if PREFLIGHT:
+            from safety_circuits.refusal import score_refusal
+            h = score_refusal(loaded, load_advbench(limit=1)[0].text, generate_continuation=True)
+            s = score_refusal(loaded, load_hh_harmless(limit=1)[0].text, generate_continuation=True)
+            summary.update(
+                preflight=True, status="ok", seconds=round(time.time() - t0, 1),
+                harm_margin=round(h.margin, 3), harm_refused=bool(h.refused_regex),
+                safe_margin=round(s.margin, 3), safe_refused=bool(s.refused_regex),
+                harm_continuation=h.continuation.strip()[:160],
+            )
+            (out / "_PREFLIGHT.json").write_text(json.dumps(summary, indent=2, default=str))
+            log(f"[{model_key}] PREFLIGHT ok — harm_refused={bool(h.refused_regex)} "
+                f"(margin {h.margin:+.2f}); safe_refused={bool(s.refused_regex)}")
+            return summary
 
         # data
         harm  = load_advbench(limit=N_PAIRS * 4)

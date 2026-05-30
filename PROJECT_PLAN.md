@@ -176,34 +176,39 @@ Target ~8-page conference/workshop format:
 
 ---
 
-## Part G — Kaggle run recipe (after coding)
+## Part G — Kaggle run recipe (one-shot, all models)
 
-The runner `kaggle/run_experiment.py` is driven by env vars. Defaults give the core
-experiment + perplexity (G1) + K-sweep (G2); the heavier analyses are opt-in.
+`kaggle/run_experiment.py` is now a **multi-model orchestrator**: one kernel run loops
+**every model sequentially, cheapest-first** (single T4 → no parallelism), runs the full
+suite per model, **skips failures with a logged traceback**, flushes results as it goes,
+and zips everything. The kernel is a **thin bootstrap** (`kaggle/kernel.ipynb`) that
+git-pulls the repo and `runpy`s the orchestrator — so logic updates ship via `git push`;
+the browser notebook is set up once and never edited again.
+
+**Run it:** `git push origin main` → open the notebook → "Save & Run All".
+Then download: `python scripts/kaggle_api.py output` (→ `results/kaggle/`), or grab
+`/kaggle/working/safety_circuits_results.zip` and commit it under `results/kaggle/`.
 
 | Env var | Default | Effect |
 |---|---|---|
-| `SC_MODEL` | `qwen` | model key from `config.MODELS` (`qwen`, `qwen3`, `gemma3-1b`, `llama3-3b`, `phi3`, `falcon3-1b`, `olmo2-1b`) |
-| `SC_N_PAIRS` | `32` | matched pairs for the sweep |
-| `SC_TOP_K` | `10` | heads ablated in the headline ablation |
-| `SC_SEED` | `0` | determinism (G10) |
-| `SC_PPL_TEXTS` | `64` | WikiText-2 snippets for perplexity (G1); `0` skips |
-| `SC_K_SWEEP` | `5,10,15,20,30,40` | ablation K-sweep (G2); empty skips |
-| `SC_COHERENCE` | `1` | port sanity check (G3) |
-| `SC_MEAN_ABLATION` | `0` | also run mean-ablation (G6) |
-| `SC_LASTTOK` | `0` | also run last-token head sweep (G7) — doubles sweep time |
-| `SC_PATTERN` | `0` | also run attention-pattern sweep (G8) — doubles sweep time |
-| `SC_JAILBREAK` | `0` | HarmBench jailbreak stress test (G9) |
+| `SC_MODELS` | all (cheapest-first) | comma list to subset / resume, e.g. `llama3-3b,phi3` |
+| `SC_SKIP_EXISTING` | `0` | skip models with a `_DONE.json` already present (resume) |
+| `SC_N_PAIRS` | `32` | matched pairs for the main z-sweep |
+| `SC_HEAVY_PAIRS` | `8` | pairs for the doubler sweeps (last-token, pattern) — bounds cost |
+| `SC_TOP_K` | `10` · `SC_K_SWEEP` `5,10,15,20,30,40` · `SC_PPL_TEXTS` `64` · `SC_SEED` `0` | as before |
+| `SC_COHERENCE` / `SC_MEAN_ABLATION` / `SC_LASTTOK` / `SC_PATTERN` / `SC_JAILBREAK` | **`1`** | all add-ons ON by default |
 
-**Suggested passes per model** (T4 time budget): one "full" run with everything on —
-`SC_MEAN_ABLATION=1 SC_LASTTOK=1 SC_PATTERN=1 SC_JAILBREAK=1` — for the 4 valid models;
-core-only for Falcon3/OLMo-2 first, then extras if time allows. Phi-3: run with
-`SC_COHERENCE=1` and check the completions are coherent before trusting any numbers.
+**Feasibility:** "everything × ~7 models" will **not** fit in one ~12h T4 session. The loop
+is built to resume — run once, then for whatever didn't finish set
+`SC_MODELS=<remaining>` (+ `SC_SKIP_EXISTING=1` if you attached the prior output) and run
+again. Cheapest-first means the small models (gemma3-1b, qwen) complete early. Prefer an
+**interactive** session (or 2 chunks) so flushed per-model results survive a timeout.
 
-Outputs per model in `/kaggle/working/`: `*_patch_z.csv` (now with std/sem/ci95),
-`*_heatmap.png`, `*_ablation.csv` (now with perplexity), `*_ksweep.csv`+`.png`,
-`*_safety_heads.json`, plus `*_ablation_mean.csv`, `*_patch_z_lasttok.csv`+heatmap,
-`*_patch_pattern.csv`+heatmap, `*_jailbreak.csv` when those flags are on.
+**Outputs** in `/kaggle/working/`: `results/<model>/` with `*_patch_z.csv` (std/sem/ci95),
+`*_heatmap.png`, `*_ablation.csv` (perplexity), `*_ksweep.csv`+`.png`, `*_ablation_mean.csv`,
+`*_patch_z_lasttok.csv`+heatmap, `*_patch_pattern.csv`+heatmap, `*_jailbreak.csv`,
+`*_coherence.json`, `*_safety_heads.json`, `_DONE.json`; plus top-level `_run_summary.json`,
+`_run_log.txt`, and `safety_circuits_results.zip`.
 
 The 50-prompt metric audit (G5) runs separately via `notebooks/06_metric_audit.ipynb`.
 

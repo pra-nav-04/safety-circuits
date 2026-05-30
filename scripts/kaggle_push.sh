@@ -1,24 +1,29 @@
 #!/usr/bin/env bash
-# Push the experiment to Kaggle and tail the status.
-# Usage: bash scripts/kaggle_push.sh [tinyllama|phi3]
+# Regenerate the thin kernel bootstrap and (optionally) push it to Kaggle.
+#
+# The kernel now runs the multi-model orchestrator from the pulled repo, so model
+# selection is NOT baked into the script — it's controlled at run time by the
+# SC_MODELS env var (default: all models, cheapest-first). See kaggle/run_experiment.py.
+#
+# Canonical workflow (no code pasting after first setup):
+#   1. git push origin main
+#   2. Open the notebook and "Save & Run All":
+#        https://www.kaggle.com/code/godspeed28/safety-circuits-nb/edit
+#      (The bootstrap git-pulls the latest repo on every run.)
+#   3. Download results:  python scripts/kaggle_api.py output
+#
+# To subset/resume, add a cell ABOVE the bootstrap, e.g.:
+#   import os; os.environ["SC_MODELS"] = "llama3-3b,phi3"; os.environ["SC_SKIP_EXISTING"] = "1"
 
 set -euo pipefail
 
-MODEL="${1:-tinyllama}"
-USERNAME="godspeed28"
-
-echo "── Pushing kernel as $USERNAME/safety-circuits (model=$MODEL) ──"
-
-# Patch the model env var into the kernel script on the fly (non-destructive)
-sed "s/SC_MODEL\", \"tinyllama\"/SC_MODEL\", \"$MODEL\"/" \
-    kaggle/run_experiment.py > /tmp/run_experiment_patched.py
-cp /tmp/run_experiment_patched.py kaggle/run_experiment.py
-
-kaggle kernels push -p kaggle/
+echo "── Regenerating kernel.ipynb (thin bootstrap) ──"
+python3 kaggle/make_kernel_notebook.py
 
 echo ""
-echo "── Kernel submitted. Monitor with: ──"
-echo "  kaggle kernels status $USERNAME/safety-circuits"
+echo "── Next: push code, then Save & Run All in the browser ──"
+echo "  git push origin main"
+echo "  https://www.kaggle.com/code/godspeed28/safety-circuits-nb/edit"
 echo ""
 echo "── Pull results when done: ──"
-echo "  kaggle kernels output $USERNAME/safety-circuits -p results/kaggle/"
+echo "  python scripts/kaggle_api.py output     # → results/kaggle/"

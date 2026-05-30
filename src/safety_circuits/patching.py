@@ -27,7 +27,7 @@ from .models import LoadedModel, apply_chat_template
 from .refusal import _refusal_token_ids
 
 
-Component = Literal["z", "attn_out", "mlp_out", "resid_pre", "resid_mid", "resid_post"]
+Component = Literal["z", "pattern", "attn_out", "mlp_out", "resid_pre", "resid_mid", "resid_post"]
 
 
 @dataclass
@@ -123,6 +123,56 @@ def patch_each_head(
                     head=head,
                     delta_margin=patched_margin - clean_margin,
                 )
+            )
+    return results
+
+
+@torch.no_grad()
+def patch_each_head_pattern(
+    loaded: LoadedModel,
+    harm_prompt: str,
+    safe_prompt: str,
+) -> list[PatchResult]:
+    """Sweep every (layer, head): patch the head's *attention pattern* safe→harm.
+
+    Complements `patch_each_head`. `z`-patching replaces what a head *writes*
+    (its value-weighted output); pattern-patching replaces *where it attends*
+    (post-softmax weights, `[batch, head, query, key]`). A head that matters via
+    `z` but not pattern is moving information without re-routing attention; one
+    that matters via pattern is changing what the model looks at. Always
+    position-agnostic (the whole query×key matrix is patched over the common prefix).
+    """
+    refusal_ids = _refusal_token_ids(loaded)
+    _, safe_cache = run_with_cache(loaded, safe_prompt, names_filter=["pattern"])
+
+    chat_harm = apply_chat_template(loaded, harm_prompt)
+    harm_tokens = loaded.model.to_tokens(chat_harm, prepend_bos=True).to(loaded.device)
+    clean_logits = loaded.model(harm_tokens)
+    clean_margin = _refusal_margin(clean_logits[0, -1], refusal_ids).item()
+
+    results: list[PatchResult] = []
+    for layer in tqdm(range(loaded.n_layers), desc="patching patterns"):
+        hook_name = get_act_name("pattern", layer)
+        src = safe_cache[hook_name]  # [head, q, k] or [batch, head, q, k]
+
+        for head in range(loaded.n_heads):
+            def hook(pattern: torch.Tensor, hook: HookPoint, head=head, src=src) -> torch.Tensor:
+                # pattern: [batch, head, query, key]
+                s = src.to(pattern.device, dtype=pattern.dtype)
+                if s.dim() < pattern.dim():
+                    s = s.unsqueeze(0)
+                n_q = min(pattern.shape[-2], s.shape[-2])
+                n_k = min(pattern.shape[-1], s.shape[-1])
+                pattern[:, head, :n_q, :n_k] = s[:, head, :n_q, :n_k]
+                return pattern
+
+            patched_logits = loaded.model.run_with_hooks(
+                harm_tokens, fwd_hooks=[(hook_name, hook)], return_type="logits"
+            )
+            patched_margin = _refusal_margin(patched_logits[0, -1], refusal_ids).item()
+            results.append(
+                PatchResult(component="pattern", layer=layer, head=head,
+                            delta_margin=patched_margin - clean_margin)
             )
     return results
 

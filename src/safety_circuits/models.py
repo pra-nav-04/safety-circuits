@@ -70,11 +70,18 @@ def load_model(
 
 
 def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype) -> HookedTransformer:
-    """Fallback path for checkpoints (e.g., Phi-3) not natively in TL.
+    """Fallback path for checkpoints (e.g., Phi-3, Llama-3.2) not natively in TL.
 
     We load the HF model + tokenizer, hand them to TL's `from_pretrained_no_processing`,
     which keeps the weights as-is and just wires the hooks. Folding / processing flags
     are intentionally off — we want the geometry untouched so patching stays interpretable.
+
+    KNOWN LIMITATION (G3): this works for standard-attention checkpoints (Llama-3.2
+    ports cleanly) but is unreliable for Phi-3-mini, whose *combined* `qkv_proj` /
+    `gate_up_proj` projections are not split into TL's separate q/k/v/gate/up weights
+    by this path — the model loads but produces garbage logits (0% baseline refusal).
+    Detect this with `quick_coherence_check()` after loading; the real fix is a manual
+    state-dict remap (split the fused projections) that needs GPU iteration to verify.
     """
     from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
@@ -104,6 +111,39 @@ def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype)
         trust_remote_code=True,
     )
     return model
+
+
+_COHERENCE_PROBES = (
+    "The capital of France is",
+    "Water is made of hydrogen and",
+    "2 + 2 =",
+)
+
+
+@torch.no_grad()
+def quick_coherence_check(
+    loaded: LoadedModel,
+    probes: tuple[str, ...] = _COHERENCE_PROBES,
+    max_new_tokens: int = 12,
+) -> list[tuple[str, str]]:
+    """Cheap single-model sanity check that a (ported) model produces sane logits.
+
+    A misaligned state-dict port (e.g. Phi-3's combined QKV projection through
+    TransformerLens) loads without error but yields garbage continuations. Greedy-
+    decoding a few trivial factual probes makes that obvious *before* an expensive
+    sweep — if the completions are incoherent, the port geometry is wrong and the
+    model should be excluded (see FINDINGS.md / PROJECT_PLAN.md G3).
+
+    Returns a list of (probe, continuation). No assertion — caller eyeballs or logs.
+    """
+    out = []
+    for probe in probes:
+        tokens = loaded.model.to_tokens(probe, prepend_bos=True).to(loaded.device)
+        gen = loaded.model.generate(
+            tokens, max_new_tokens=max_new_tokens, temperature=0.0, verbose=False
+        )
+        out.append((probe, loaded.model.to_string(gen[0, tokens.shape[1]:])))
+    return out
 
 
 def apply_chat_template(loaded: LoadedModel, user_msg: str) -> str:

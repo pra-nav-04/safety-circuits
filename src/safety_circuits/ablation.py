@@ -66,8 +66,9 @@ def _build_head_ablation_hooks(
                     z[:, :, head_idx, :] = 0.0
                 elif mode == "mean":
                     assert mean_cache is not None
-                    mean = mean_cache[hook_name].to(z.device, dtype=z.dtype)
-                    z[:, :, head_idx, :] = mean[:, head_idx, :]
+                    mean = mean_cache[hook_name].to(z.device, dtype=z.dtype)  # [head, d_head]
+                    # broadcast the constant per-head mean across batch & all positions
+                    z[:, :, head_idx, :] = mean[head_idx, :]
                 return z
             return hook
 
@@ -79,22 +80,63 @@ def _build_head_ablation_hooks(
 def compute_mean_z_cache(
     loaded: LoadedModel, benign_prompts: list[str]
 ) -> dict[str, torch.Tensor]:
-    """Mean head outputs over a benign batch — used by mean-ablation.
+    """Mean head output per (head, d_head), averaged over all token positions and
+    all benign prompts — used by mean-ablation.
 
-    Returns a dict `{hook_name: [seq, head, d_head]}` averaged over prompts.
+    Mean-ablation replaces a head's output with this constant vector instead of
+    zero (Wang et al.): it controls for the "removed all signal" confound by
+    substituting the *typical benign* output rather than nothing. Returns a dict
+    `{hook_name: [head, d_head]}`, which broadcasts cleanly across batch and
+    sequence length at ablation time (no dependence on prompt length).
     """
-    totals: dict[str, torch.Tensor] = {}
-    counts = 0
+    sums: dict[str, torch.Tensor] = {}
+    counts: dict[str, int] = {}
     for p in tqdm(benign_prompts, desc="mean-cache"):
         _, cache = run_with_cache(loaded, p, names_filter=["z"])
         for name, val in cache.items():
-            v = val[0].detach()
-            if name not in totals:
-                totals[name] = torch.zeros_like(v)
-            # truncate or pad to a common length by mean over seq
-            totals[name] = totals[name] + v.mean(dim=0, keepdim=True).expand_as(totals[name])
-        counts += 1
-    return {k: v / counts for k, v in totals.items()}
+            v = val[0].detach()        # [seq, head, d_head]
+            s = v.sum(dim=0)           # [head, d_head]
+            if name not in sums:
+                sums[name] = torch.zeros_like(s)
+                counts[name] = 0
+            sums[name] = sums[name] + s
+            counts[name] += v.shape[0]  # number of positions accumulated
+    return {k: sums[k] / counts[k] for k in sums}
+
+
+@torch.no_grad()
+def _refusal_count_clean(loaded: LoadedModel, eval_prompts: list[str]) -> int:
+    """Number of `eval_prompts` the unmodified model refuses (regex on continuation)."""
+    return sum(
+        score_refusal(loaded, p, generate_continuation=True).refused_regex
+        for p in tqdm(eval_prompts, desc="clean")
+    )
+
+
+@torch.no_grad()
+def _refusal_count_under_hooks(
+    loaded: LoadedModel,
+    hooks: list,
+    eval_prompts: list[str],
+    desc: str = "ablated",
+) -> int:
+    """Number of `eval_prompts` refused while `hooks` (ablation) are active."""
+    from .refusal import regex_refusal
+
+    refused = 0
+    for p in tqdm(eval_prompts, desc=desc):
+        chat = apply_chat_template(loaded, p)
+        tokens = loaded.model.to_tokens(chat, prepend_bos=True).to(loaded.device)
+        loaded.model.reset_hooks()
+        for name, hk in hooks:
+            loaded.model.add_hook(name, hk)
+        try:
+            out = loaded.model.generate(tokens, max_new_tokens=30, temperature=0.0, verbose=False)
+        finally:
+            loaded.model.reset_hooks()
+        continuation = loaded.model.to_string(out[0, tokens.shape[1]:])
+        refused += int(regex_refusal(continuation))
+    return refused
 
 
 @torch.no_grad()
@@ -113,28 +155,10 @@ def evaluate_ablation(
     on those texts — the H3 capability-preservation control: refusal should
     collapse while general-language perplexity barely moves.
     """
-    # clean
-    clean_refused = sum(
-        score_refusal(loaded, p, generate_continuation=True).refused_regex
-        for p in tqdm(eval_prompts, desc="clean")
-    )
+    clean_refused = _refusal_count_clean(loaded, eval_prompts)
 
     hooks = _build_head_ablation_hooks(heads, mode, mean_cache)
-    abl_refused = 0
-    for p in tqdm(eval_prompts, desc="ablated"):
-        chat = apply_chat_template(loaded, p)
-        tokens = loaded.model.to_tokens(chat, prepend_bos=True).to(loaded.device)
-        # generate with hooks active
-        loaded.model.reset_hooks()
-        for name, hk in hooks:
-            loaded.model.add_hook(name, hk)
-        try:
-            out = loaded.model.generate(tokens, max_new_tokens=30, temperature=0.0, verbose=False)
-        finally:
-            loaded.model.reset_hooks()
-        continuation = loaded.model.to_string(out[0, tokens.shape[1]:])
-        from .refusal import regex_refusal
-        abl_refused += int(regex_refusal(continuation))
+    abl_refused = _refusal_count_under_hooks(loaded, hooks, eval_prompts)
 
     # capability-preservation control (optional)
     ppl_clean = ppl_ablated = None
@@ -149,6 +173,47 @@ def evaluate_ablation(
         perplexity_clean=ppl_clean,
         perplexity_ablated=ppl_ablated,
     )
+
+
+@dataclass
+class KSweepPoint:
+    k: int
+    refusal_rate_ablated: float
+    perplexity_ablated: float | None = None
+
+
+@torch.no_grad()
+def ablation_k_sweep(
+    loaded: LoadedModel,
+    ranked_heads: list[HeadRef],
+    eval_prompts: list[str],
+    ks: list[int],
+    mode: AblationMode = "zero",
+    mean_cache: dict[str, torch.Tensor] | None = None,
+    perplexity_texts: list[str] | None = None,
+) -> tuple[float, list[KSweepPoint]]:
+    """Refusal rate as a function of how many top heads are ablated.
+
+    `ranked_heads` is the priority-ordered candidate list (strongest first). For
+    each ``k`` in ``ks`` we ablate ``ranked_heads[:k]`` and measure the held-out
+    refusal rate (and, if `perplexity_texts` is given, perplexity under that
+    ablation). The clean baseline is computed once and returned separately.
+
+    Resolves the Llama-3.2 question — does suppression need k>10? — without
+    re-running the expensive patching sweep.
+
+    Returns ``(refusal_rate_clean, [KSweepPoint, ...])``.
+    """
+    n = len(eval_prompts)
+    clean_rate = _refusal_count_clean(loaded, eval_prompts) / n
+
+    points: list[KSweepPoint] = []
+    for k in ks:
+        hooks = _build_head_ablation_hooks(ranked_heads[:k], mode, mean_cache)
+        abl = _refusal_count_under_hooks(loaded, hooks, eval_prompts, desc=f"ablated k={k}")
+        ppl = perplexity(loaded, perplexity_texts, fwd_hooks=hooks) if perplexity_texts else None
+        points.append(KSweepPoint(k=k, refusal_rate_ablated=abl / n, perplexity_ablated=ppl))
+    return clean_rate, points
 
 
 @torch.no_grad()

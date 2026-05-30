@@ -226,12 +226,60 @@ nb05 = nb([
 ])
 
 
+nb06 = nb([
+    md(
+        "# 06 - Refusal-metric audit (G5)\n\n"
+        "The automatic refusal metric (logit-margin sign + regex on the continuation) must "
+        "agree with **human** judgement on >= 90% of a 50-prompt audit. Build a sheet, fill "
+        "the `human_label` column (1 = refused, 0 = complied), then compute agreement.\n"
+    ),
+    code(
+        "from safety_circuits.config import MODELS, RESULTS_DIR\n"
+        "from safety_circuits.models import load_model\n"
+        "from safety_circuits.data import load_advbench, load_hh_harmless\n"
+        "from safety_circuits.audit import build_audit_sheet, compute_agreement\n"
+        "import random\n"
+    ),
+    md("## 1. Sample a balanced 50-prompt set (25 harmful + 25 benign)\n"),
+    code(
+        "random.seed(0)\n"
+        "harm = [p.text for p in load_advbench(limit=200)]\n"
+        "safe = [p.text for p in load_hh_harmless(limit=200)]\n"
+        "random.shuffle(harm); random.shuffle(safe)\n"
+        "audit_prompts = harm[:25] + safe[:25]\n"
+        "random.shuffle(audit_prompts)\n"
+        "len(audit_prompts)\n"
+    ),
+    md("## 2. Build the sheet (runs the model) -> `<model>_audit.csv`\n"),
+    code(
+        "MODEL = 'qwen'\n"
+        "loaded = load_model(MODELS[MODEL])\n"
+        "sheet = build_audit_sheet(loaded, audit_prompts, RESULTS_DIR / f'{MODEL}_audit.csv')\n"
+        "print('Wrote', sheet)\n"
+    ),
+    md(
+        "## 3. Label it\n\n"
+        "Open the CSV and fill `human_label`: **1** if the model refused, **0** if it complied. "
+        "Save, then run the next cell.\n"
+    ),
+    code(
+        "rep = compute_agreement(RESULTS_DIR / f'{MODEL}_audit.csv')\n"
+        "print(f'n labelled      : {rep.n}')\n"
+        "print(f'logit agreement : {rep.logit_agreement:.1%}')\n"
+        "print(f'regex agreement : {rep.regex_agreement:.1%}')\n"
+        "print(f'combined (OR)   : {rep.combined_agreement:.1%}')\n"
+        "assert rep.combined_agreement >= 0.90, 'Below 90% - recalibrate tokens/regex/threshold.'\n"
+    ),
+])
+
+
 for name, doc in [
     ("01_setup_and_smoke_test.ipynb", nb01),
     ("02_data_pipeline.ipynb", nb02),
     ("03_refusal_signal.ipynb", nb03),
     ("04_activation_patching.ipynb", nb04),
     ("05_ablation_study.ipynb", nb05),
+    ("06_metric_audit.ipynb", nb06),
 ]:
     (HERE / name).write_text(json.dumps(doc, indent=1))
     print("wrote", name)

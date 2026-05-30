@@ -76,17 +76,17 @@
 ### B1. Experimental / scientific gaps
 | # | Gap | Why it matters | Where | Effort | Done |
 |---|---|---|---|---|---|
-| G1 | **Perplexity / capability check never measured** | H3 success criterion (≤5% Δ). `perplexity()` exists but `evaluate_ablation` hardcoded `None`. Highest-priority. | `ablation.py`, `data.py`, `cli.py`, `run_experiment.py` | M | 🟡 code done — Kaggle re-runs pending |
-| G2 | **Llama ablation incomplete (75%)** | K-sweep (10→40) to find threshold or document distributed circuit. | `run_experiment.py` (`SC_TOP_K`) | S | ☐ |
-| G3 | **Phi-3 broken (0% baseline)** | Correct combined-QKV/RoPE TL port, or documented swap. | `models.py:_load_via_hf_port` | M–L | ☐ |
-| G4 | **Pending models not run** (Falcon3-1B, OLMo-2-1B) | More models → stronger H4; OLMo-2 fully-open-data. | `config.py` | S each | ☐ |
-| G5 | **No refusal-metric validation** | ≥90% agreement vs human labels on 50-prompt audit. | new `notebooks/06_metric_audit.ipynb` | M | ☐ |
-| G6 | **Mean-ablation never run** | Wang et al. confound control; code exists, unused. | `ablation.py` (`mode="mean"`) | S | ☐ |
-| G7 | **Last-token-only patching not used** | Reviewers ask if effect concentrates at decision token. | `patching.py:patch_each_head` | S | ☐ |
-| G8 | **Attention-pattern patching not implemented** | Pattern vs value-weighted output. Optional. | new fn in `patching.py` | M | ☐ |
-| G9 | **HarmBench jailbreak stress test not run** | Do safety heads still fire under jailbreaks? | `data.load_harmbench` | M | ☐ |
-| G10 | **No statistical rigor** | Error bars / CIs / fixed seed across pairs. | `analysis.py` | M | ☐ |
-| G11 | **Residual-trace "flat" artifact** | Frame as sanity check, not a finding. | `FINDINGS.md`, paper | trivial | ☐ |
+| G1 | **Perplexity / capability check never measured** | H3 success criterion (≤5% Δ). `perplexity()` exists but `evaluate_ablation` hardcoded `None`. Highest-priority. | `ablation.py`, `data.py`, `cli.py`, `run_experiment.py` | M | 🟡 code done — Kaggle run pending |
+| G2 | **Llama ablation incomplete (75%)** | K-sweep (10→40) to find threshold or document distributed circuit. | `ablation.ablation_k_sweep`, `analysis.plot_k_sweep`, runner `SC_K_SWEEP` | S | 🟡 code done — Kaggle run pending |
+| G3 | **Phi-3 broken (0% baseline)** | Correct combined-QKV/RoPE TL port, or documented swap. | `models.quick_coherence_check` (diagnostic) + `_load_via_hf_port` doc | M–L | 🟡 diagnostic added; **manual QKV remap still needs GPU iteration** |
+| G4 | **Pending models not run** (Falcon3-1B, OLMo-2-1B) | More models → stronger H4; OLMo-2 fully-open-data. | `config.py` (already configured) | S each | 🟡 no code needed — Kaggle run pending |
+| G5 | **No refusal-metric validation** | ≥90% agreement vs human labels on 50-prompt audit. | `audit.py`, `notebooks/06_metric_audit.ipynb` | M | 🟡 harness done — needs model run + human labels |
+| G6 | **Mean-ablation never run** | Wang et al. confound control; code existed but mean-cache shape was buggy. | `ablation.compute_mean_z_cache` (fixed) + runner `SC_MEAN_ABLATION` | S | 🟡 code done — Kaggle run pending |
+| G7 | **Last-token-only patching not used** | Reviewers ask if effect concentrates at decision token. | runner `SC_LASTTOK` (uses `patch_each_head(position=-1)`) | S | 🟡 code done — Kaggle run pending |
+| G8 | **Attention-pattern patching not implemented** | Pattern vs value-weighted output. | `patching.patch_each_head_pattern`, runner `SC_PATTERN` | M | 🟡 code done — Kaggle run pending |
+| G9 | **HarmBench jailbreak stress test not run** | Do safety heads still fire under jailbreaks? | `jailbreak.py`, runner `SC_JAILBREAK` | M | 🟡 code done — Kaggle run pending |
+| G10 | **No statistical rigor** | Error bars / CIs / fixed seed across pairs. | `analysis.aggregate_pairs` (std/sem/ci95), runner `SC_SEED` | M | ✅ code done (std/sem/ci95 columns + seed) |
+| G11 | **Residual-trace "flat" artifact** | Frame as sanity check, not a finding. | `FINDINGS.md`, paper | trivial | ☐ (writeup) |
 
 ### B2. Deliverable gaps (THE GRADE)
 | # | Gap | Weight | Done |
@@ -108,17 +108,12 @@
 - [ ] Confirm paper length/format on Discord / Thursday office hours (2–3pm). _(your action)_
 
 ### Phase 1 — Must-have experiments → unblock midterm (now → 18/06)
-1. **G1** Wire `perplexity()` into `evaluate_ablation`; populate CSV columns; re-run on the 4 valid models.
-   - [x] `load_wikitext2()` added (`data.py`) — WikiText-2 test-split snippets for the control.
-   - [x] `perplexity()` accepts `fwd_hooks` → measures perplexity *under ablation* (`ablation.py`).
-   - [x] `evaluate_ablation(..., perplexity_texts=)` computes clean + ablated; `AblationReport.perplexity_pct_change` property (H3 ≤5% target).
-   - [x] Wired into Kaggle runner (`run_experiment.py`, `SC_PPL_TEXTS` env, saves `perplexity_pct_change` column) and CLI (`--ppl_texts`).
-   - [x] Model-free tests pass; all files compile.
-   - [ ] **Re-run on Kaggle** for the 4 valid models → fill perplexity columns in each `*_ablation.csv`, update `FINDINGS.md`. _(GPU run)_
-2. [ ] **G2** Llama K-sweep `SC_TOP_K ∈ {10,15,20,30,40}`; plot refusal-rate vs K.
-3. [ ] **G4** Run Falcon3-1B and OLMo-2-1B end-to-end (patch + ablate + perplexity).
-4. [ ] **G5** Hand-label 50 prompts; compute agreement vs logit+regex (≥90% target).
-5. [ ] **G10** Add per-pair variance / 95% CI to aggregated |Δmargin|; fix and report a seed.
+> **All code below is now implemented, tested (model-free), committed, and pushed.** What remains is GPU execution on Kaggle (see Part G) + folding numbers into `FINDINGS.md`.
+1. [x] **G1** perplexity wired into `evaluate_ablation` + runner + CLI; `load_wikitext2()`; `perplexity_pct_change`. → Kaggle run pending.
+2. [x] **G2** `ablation_k_sweep()` + `plot_k_sweep()` + runner `SC_K_SWEEP`. → Kaggle run pending.
+3. [x] **G4** Falcon3/OLMo-2 already configured (no code). → Kaggle run pending.
+4. [x] **G5** `audit.py` (`build_audit_sheet`/`compute_agreement`) + `notebooks/06_metric_audit.ipynb`. → needs model run + human labels.
+5. [x] **G10** `aggregate_pairs` now emits std/sem/ci95; runner sets/report seed.
 
 ### Phase 2 — Midterm presentation (deliver 19/06)
 - [ ] 15-min deck (~12–15 slides): problem → method → working result (sparse heads, ablation collapse) → cross-model picture → next steps.
@@ -127,12 +122,13 @@
 - [ ] Rehearse to 15 min + backup Q&A slides.
 
 ### Phase 3 — Stretch experiments → publication-grade (20/06 → ~20/07)
-6. [ ] **G3** Fix Phi-3 port (or documented swap + exclusion rationale).
-7. [ ] **G9** HarmBench jailbreak stress test on identified heads.
-8. [ ] **G7** Last-token vs position-agnostic patching (side-by-side heatmaps).
-9. [ ] **G6** Mean-ablation vs zero-ablation comparison table.
-10. [ ] **G8** Attention-pattern patching (optional; cut first if time-pressed).
-11. [ ] **G11** Reframe residual-trace as sanity check everywhere.
+> **Code for G6–G9 is implemented, tested, committed, pushed.** Enable via the Part G flags on the Kaggle run. G3 has a diagnostic; the underlying port fix still needs GPU iteration.
+6. [~] **G3** `quick_coherence_check()` diagnostic added + documented. Manual QKV remap (real fix) still needs GPU iteration, else keep Phi-3 excluded.
+7. [x] **G9** `jailbreak.py` + runner `SC_JAILBREAK`. → Kaggle run pending.
+8. [x] **G7** runner `SC_LASTTOK` (position=-1 sweep + heatmap). → Kaggle run pending.
+9. [x] **G6** mean-ablation fixed (`compute_mean_z_cache`) + runner `SC_MEAN_ABLATION`. → Kaggle run pending.
+10. [x] **G8** `patch_each_head_pattern()` + runner `SC_PATTERN`. → Kaggle run pending.
+11. [ ] **G11** Reframe residual-trace as sanity check everywhere. _(writeup)_
 
 ### Phase 4 — Paper writing (~20/07 → 25/08, overlaps Phase 3)
 Target ~8-page conference/workshop format:
@@ -177,6 +173,39 @@ Target ~8-page conference/workshop format:
 - **Metric audit (G5):** labeled CSV + computed agreement %.
 - **Deliverables (D1–D3):** paper compiles to ~8 pages; decks rehearsed to time; dry-run Q&A.
 - **End-to-end repro:** fresh clone → `python -m safety_circuits.cli run-mvp --model qwen` reproduces a headline number.
+
+---
+
+## Part G — Kaggle run recipe (after coding)
+
+The runner `kaggle/run_experiment.py` is driven by env vars. Defaults give the core
+experiment + perplexity (G1) + K-sweep (G2); the heavier analyses are opt-in.
+
+| Env var | Default | Effect |
+|---|---|---|
+| `SC_MODEL` | `qwen` | model key from `config.MODELS` (`qwen`, `qwen3`, `gemma3-1b`, `llama3-3b`, `phi3`, `falcon3-1b`, `olmo2-1b`) |
+| `SC_N_PAIRS` | `32` | matched pairs for the sweep |
+| `SC_TOP_K` | `10` | heads ablated in the headline ablation |
+| `SC_SEED` | `0` | determinism (G10) |
+| `SC_PPL_TEXTS` | `64` | WikiText-2 snippets for perplexity (G1); `0` skips |
+| `SC_K_SWEEP` | `5,10,15,20,30,40` | ablation K-sweep (G2); empty skips |
+| `SC_COHERENCE` | `1` | port sanity check (G3) |
+| `SC_MEAN_ABLATION` | `0` | also run mean-ablation (G6) |
+| `SC_LASTTOK` | `0` | also run last-token head sweep (G7) — doubles sweep time |
+| `SC_PATTERN` | `0` | also run attention-pattern sweep (G8) — doubles sweep time |
+| `SC_JAILBREAK` | `0` | HarmBench jailbreak stress test (G9) |
+
+**Suggested passes per model** (T4 time budget): one "full" run with everything on —
+`SC_MEAN_ABLATION=1 SC_LASTTOK=1 SC_PATTERN=1 SC_JAILBREAK=1` — for the 4 valid models;
+core-only for Falcon3/OLMo-2 first, then extras if time allows. Phi-3: run with
+`SC_COHERENCE=1` and check the completions are coherent before trusting any numbers.
+
+Outputs per model in `/kaggle/working/`: `*_patch_z.csv` (now with std/sem/ci95),
+`*_heatmap.png`, `*_ablation.csv` (now with perplexity), `*_ksweep.csv`+`.png`,
+`*_safety_heads.json`, plus `*_ablation_mean.csv`, `*_patch_z_lasttok.csv`+heatmap,
+`*_patch_pattern.csv`+heatmap, `*_jailbreak.csv` when those flags are on.
+
+The 50-prompt metric audit (G5) runs separately via `notebooks/06_metric_audit.ipynb`.
 
 ---
 

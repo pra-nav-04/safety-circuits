@@ -43,7 +43,7 @@ else:
 sys.path.insert(0, str(repo / "src"))
 
 import runpy
-runpy.run_path(str(repo / "kaggle" / "run_experiment.py"), run_name="__main__")
+_ = runpy.run_path(str(repo / "kaggle" / "run_experiment.py"), run_name="__main__")  # _ = … hides the namespace dump
 '''
 
 lines = BOOTSTRAP.splitlines(keepends=True)

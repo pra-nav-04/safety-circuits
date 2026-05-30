@@ -164,7 +164,13 @@ def load_wikitext2(limit: int = 64, min_chars: int = 200) -> list[str]:
     """
     from datasets import load_dataset
 
-    ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
+    # The bare canonical "wikitext" id is rejected by newer datasets/huggingface_hub
+    # ("Repository id must be 'namespace/name'"). Use the namespaced mirror, fall back
+    # to the bare id for older datasets versions.
+    try:
+        ds = load_dataset("Salesforce/wikitext", "wikitext-2-raw-v1", split="test")
+    except Exception:
+        ds = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
     out = []
     for row in ds:
         t = row["text"].strip()

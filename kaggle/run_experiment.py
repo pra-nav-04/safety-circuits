@@ -121,8 +121,15 @@ def run_one(model_key: str, log) -> dict:
         harm  = load_advbench(limit=N_PAIRS * 4)
         safe  = load_hh_harmless(limit=N_PAIRS * 4)
         pairs = build_matched_pairs(harm, safe, n_pairs=N_PAIRS)
-        ppl_texts    = load_wikitext2(limit=PPL_TEXTS) if PPL_TEXTS else None
         eval_prompts = [h.text for h, _ in pairs[N_PAIRS // 2:]]
+        # perplexity texts are a non-essential control — never let them sink a model
+        ppl_texts = None
+        if PPL_TEXTS:
+            try:
+                ppl_texts = load_wikitext2(limit=PPL_TEXTS)
+            except Exception as e:  # noqa: BLE001
+                log(f"[{model_key}] perplexity texts unavailable ({e!r}); skipping perplexity")
+                summary.setdefault("addon_errors", {})["perplexity_texts"] = repr(e)
 
         # ── core: residual trace ───────────────────────────────────────────
         r0 = patch_residual_stream(loaded, pairs[0][0].text, pairs[0][1].text)

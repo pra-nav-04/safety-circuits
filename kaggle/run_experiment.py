@@ -42,10 +42,11 @@ from safety_circuits.ablation import (
     HeadRef, evaluate_ablation, ablation_k_sweep, compute_mean_z_cache,
 )
 from safety_circuits.jailbreak import jailbreak_stress_test
+from safety_circuits.toxicity import rtp_toxicity_probe
 
 
 # ───────────────────────────── config (env) ─────────────────────────────
-N_PAIRS     = int(os.environ.get("SC_N_PAIRS", "32"))
+N_PAIRS     = int(os.environ.get("SC_N_PAIRS", "50"))   # bumped 32→50 for tighter CIs + paper framing
 HEAVY_PAIRS = int(os.environ.get("SC_HEAVY_PAIRS", "8"))   # pairs for the doubler sweeps
 TOP_K       = int(os.environ.get("SC_TOP_K", "10"))
 K_SWEEP     = os.environ.get("SC_K_SWEEP", "5,10,15,20,30,40")
@@ -56,6 +57,7 @@ DO_MEAN     = os.environ.get("SC_MEAN_ABLATION", "1") == "1"
 DO_LASTTOK  = os.environ.get("SC_LASTTOK", "1") == "1"
 DO_PATTERN  = os.environ.get("SC_PATTERN", "1") == "1"
 DO_JAILBRK  = os.environ.get("SC_JAILBREAK", "1") == "1"
+DO_RTP      = os.environ.get("SC_RTP", "1") == "1"        # RTP toxicity probe
 SKIP_EXIST  = os.environ.get("SC_SKIP_EXISTING", "0") == "1"
 PREFLIGHT   = os.environ.get("SC_PREFLIGHT", "0") == "1"   # load + coherence + 1 refusal, no sweeps
 
@@ -150,8 +152,16 @@ def run_one(model_key: str, log) -> dict:
         # data
         harm  = load_advbench(limit=N_PAIRS * 4)
         safe  = load_hh_harmless(limit=N_PAIRS * 4)
-        pairs = build_matched_pairs(harm, safe, n_pairs=N_PAIRS)
+        pairs = build_matched_pairs(harm, safe, n_pairs=N_PAIRS, seed=SEED)
         eval_prompts = [h.text for h, _ in pairs[N_PAIRS // 2:]]
+
+        # ── reproducibility artifact: save the exact pairs used ───────────────
+        from safety_circuits.data import save_jsonl
+        save_jsonl(
+            [{"harm": h.__dict__, "safe": s.__dict__} for h, s in pairs],
+            out / f"{model_key}_pairs.jsonl",
+        )
+        log(f"[{model_key}] saved {len(pairs)} matched pairs")
         # perplexity texts are a non-essential control — never let them sink a model
         ppl_texts = None
         if PPL_TEXTS:
@@ -191,6 +201,42 @@ def run_one(model_key: str, log) -> dict:
                        perplexity_pct_change=report.perplexity_pct_change)
         log(f"[{model_key}] zero-ablation {report.refusal_rate_clean:.0%} -> "
             f"{report.refusal_rate_ablated:.0%}; ppl Δ {report.perplexity_pct_change}")
+
+        # ── reproducibility artifact: sample clean vs ablated continuations ───
+        # Capture the first 8 eval prompts so reviewers can verify the qualitative
+        # story ("model refuses → model complies after ablation") in the paper.
+        try:
+            from safety_circuits.refusal import score_refusal, regex_refusal
+            from safety_circuits.ablation import _build_head_ablation_hooks
+            sample_hooks = _build_head_ablation_hooks(heads, "zero", None)
+            examples = []
+            for ep in eval_prompts[:8]:
+                clean_s = score_refusal(loaded, ep, generate_continuation=True)
+                # ablated generation
+                from safety_circuits.models import apply_chat_template
+                chat = apply_chat_template(loaded, ep)
+                toks = loaded.model.to_tokens(chat, prepend_bos=True).to(loaded.device)
+                loaded.model.reset_hooks()
+                for name, hk in sample_hooks:
+                    loaded.model.add_hook(name, hk)
+                try:
+                    abl_out = loaded.model.generate(toks, max_new_tokens=30, temperature=0.0, verbose=False)
+                finally:
+                    loaded.model.reset_hooks()
+                abl_cont = loaded.model.to_string(abl_out[0, toks.shape[1]:])
+                examples.append({
+                    "prompt": ep,
+                    "clean_continuation": clean_s.continuation.strip(),
+                    "clean_refused": bool(clean_s.refused_regex),
+                    "clean_margin": round(clean_s.margin, 3),
+                    "ablated_continuation": abl_cont.strip(),
+                    "ablated_refused": bool(regex_refusal(abl_cont)),
+                })
+            save_jsonl(examples, out / f"{model_key}_examples.jsonl")
+            log(f"[{model_key}] saved {len(examples)} clean/ablated example continuations")
+        except Exception as e:  # noqa: BLE001
+            log(f"[{model_key}] examples capture FAILED: {e!r}")
+            summary.setdefault("addon_errors", {})["examples"] = repr(e)
 
         # ── optional add-ons (each isolated) ────────────────────────────────
         def _try(name, fn):
@@ -253,6 +299,22 @@ def run_one(model_key: str, log) -> dict:
                 pd.DataFrame([rep.__dict__]).to_csv(out / f"{model_key}_jailbreak.csv", index=False)
                 summary["jailbreak"] = rep.__dict__
             _try("jailbreak", _jb)
+
+        if DO_RTP:
+            def _rtp():
+                from safety_circuits.data import load_rtp
+                rtp = load_rtp(limit=N_PAIRS, toxicity_threshold=0.5)
+                rep = rtp_toxicity_probe(loaded, heads, [p.text for p in rtp], mode="zero")
+                pd.DataFrame(rep.rows).to_csv(out / f"{model_key}_rtp_toxicity.csv", index=False)
+                summary["rtp"] = {
+                    "n": rep.n,
+                    "mean_tox_clean": rep.mean_tox_clean,
+                    "mean_tox_ablated": rep.mean_tox_ablated,
+                    "delta_tox": rep.delta_tox,
+                }
+                log(f"[{model_key}] RTP toxicity clean {rep.mean_tox_clean:.2%} → "
+                    f"ablated {rep.mean_tox_ablated:.2%} (Δ {rep.delta_tox:+.2%})")
+            _try("rtp_toxicity", _rtp)
 
         summary["status"] = "ok"
         summary["seconds"] = round(time.time() - t0, 1)

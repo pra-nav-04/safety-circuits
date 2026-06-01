@@ -101,8 +101,11 @@ MODELS: dict[str, ModelSpec] = {
         key="gemma2-2b",
         hf_name="google/gemma-2-2b-it",
         tl_name=None,  # GATED: accept terms at hf.co/google/gemma-2-2b-it
+        # fp32 (~10GB) + activations OOMs the T4's ~14.5GB VRAM, so fp16 is forced.
+        # Gemma-2's logit soft-capping *can* be unstable in fp16 — the coherence check
+        # gates this: if completions are garbage/NaN, drop gemma2-2b (keep G1 + G3).
         refusal_first_tokens=_REFUSAL,
-        dtype="float32",  # Gemma-2 soft-capping is unstable in fp16; T4 has no bf16
+        dtype="float16",
     ),
     "gemma3-1b": ModelSpec(
         key="gemma3-1b",

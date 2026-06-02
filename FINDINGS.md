@@ -113,91 +113,85 @@ collapse; it is *not* clean evidence of cross-behaviour generalisation.
 
 ---
 
-## Model 2: Qwen3-1.7B
+## Model 2: Qwen3-1.7B  *(full pipeline, N=50)*
 
 ### Setup
 
 | Item | Value |
 |------|-------|
-| Model | `Qwen/Qwen3-1.7B` |
-| Architecture | 28 layers × 16 heads |
-| Total attention heads | 448 |
-| dtype | float16 |
-| GPU | Tesla T4 (Kaggle) |
-| Harmful dataset | AdvBench (520 harmful behaviours, raw GitHub CSV) |
-| Benign dataset | HH-RLHF harmless-base (`Anthropic/hh-rlhf`) |
-| Matched pairs | 32 |
-| Patching method | Activation patching on attention head `z` output |
-| Metric | Refusal-logit margin = log p(refusal tokens) − log p(other tokens) |
-| Ablation mode | Zero-ablation of top-K heads |
-| Note | Thinking mode disabled (`enable_thinking=False`) |
+| Model | `Qwen/Qwen3-1.7B` (28L × 16H, 448 heads); thinking mode off |
+| dtype / GPU | float16 / Tesla T4 · seed 0 |
+| Data | AdvBench × HH-RLHF, **50 pairs** (eval 25); controls: WikiText-2, HarmBench (50), RTP (50) |
+| Coherence | "Paris." / "oxygen." / "2 + 2" — loads & generates correctly ✓ |
 
-### E4 — Coarse Residual Trace
+### The generational story (Qwen2.5 → Qwen3) — the headline of this run
 
-**Result:** All 28 layers produced near-identical delta_margin of **~−24.48** (range: −24.47 to −24.50).
+Qwen3 is the newer Qwen generation at nearly the same size, so the contrast is a clean
+**within-family generational comparison**. Three things shifted, and not in the direction you'd hope:
 
-**Interpretation:** Same flat-trace artefact as Qwen2.5 — full-residual replacement works at any layer, confirming the refusal signal is encoded throughout the network. Slightly lower magnitude than Qwen2.5 (−24.48 vs −32.70), consistent with float16 precision differences and a different refusal margin baseline.
+| | Qwen2.5-1.5B | **Qwen3-1.7B** |
+|---|---|---|
+| Top head \|Δ\| | L0H10 = 1.06 | **L0H3 = 8.87** (8×) |
+| L0 heads in top-10 | 2 | **5** |
+| Clean refusal (held-out) | 100% | **88%** |
+| Jailbreak refusal (HarmBench) | 94% | **42%** |
+| Jailbreak refusal margin | +2.20 | **−2.99** |
 
-### E5 — Per-Head Patching Sweep (32 pairs × 28 layers × 16 heads)
+**Qwen3 concentrates refusal harder into layer 0 yet is far more jailbreakable.** Its safety became
+*more localized but more brittle* — a striking, non-obvious generational result.
 
-#### Top-20 heads by |Δ refusal-margin|
+### E4 — Per-head sweep (50 pairs), top-10 by |Δ refusal-margin| ± 95% CI
 
-| Rank | Layer | Head | |Δ margin| |
-|------|-------|------|----------|
-| 1  | 0  | 3  | **8.298** |
-| 2  | 15 | 9  | 1.573 |
-| 3  | 10 | 3  | 1.380 |
-| 4  | 0  | 12 | 1.203 |
-| 5  | 9  | 7  | 1.177 |
-| 6  | 0  | 9  | 1.104 |
-| 7  | 1  | 15 | 1.097 |
-| 8  | 14 | 12 | 1.070 |
-| 9  | 10 | 5  | 0.974 |
-| 10 | 0  | 7  | 0.967 |
-| 11 | 12 | 6  | 0.966 |
-| 12 | 14 | 13 | 0.902 |
-| 13 | 10 | 2  | 0.881 |
-| 14 | 7  | 13 | 0.880 |
-| 15 | 23 | 6  | 0.875 |
-| 16 | 3  | 11 | 0.860 |
-| 17 | 4  | 4  | 0.850 |
-| 18 | 0  | 4  | 0.839 |
-| 19 | 0  | 1  | 0.835 |
-| 20 | 0  | 5  | 0.832 |
+| Rank | Layer | Head | \|Δ margin\| | 95% CI |
+|------|-------|------|------------|--------|
+| 1  | **0**  | 3  | **8.867** | ±2.128 |
+| 2  | 15 | 9  | 1.974 | ±0.560 |
+| 3  | 10 | 3  | 1.293 | ±0.316 |
+| 4  | 14 | 13 | 1.252 | ±0.306 |
+| 5  | **0**  | 12 | 1.186 | ±0.358 |
+| 6  | 9  | 7  | 1.151 | ±0.453 |
+| 7  | **0**  | 9  | 1.135 | ±0.367 |
+| 8  | 12 | 6  | 1.123 | ±0.281 |
+| 9  | **0**  | 1  | 0.987 | ±0.313 |
+| 10 | **0**  | 2  | 0.980 | ±0.293 |
 
-#### Heatmap observations
+- **L0H3 is extreme** (8.87, ~4.5× the #2 head) — by far the most dominant single head across all models.
+- **5 of the top-10 are layer-0** (H3, H12, H9, H1, H2) vs 2 in Qwen2.5 — refusal is funneled into the first layer.
+- Wide CI on L0H3 (±2.1) again signals a high-variance, general-purpose head that also carries refusal.
 
-- **L0H3** is the dominant outlier (|Δ| = 8.298) — nearly 9× the magnitude of the Qwen2.5 top head.
-- **Layer 0 cluster is stronger**: 4 of the top-10 heads are in L0 (H3, H12, H9, H7), vs 2 in Qwen2.5.
-- **L1H15** appears at rank 7, extending the early-layer cluster one layer deeper than Qwen2.5.
-- **Mid-layer cluster**: L7–L15, slightly earlier than the L10–L19 band in Qwen2.5.
-- **L23H6** at rank 15 is the only truly late-layer head; late layers (L24–L27) are otherwise inactive.
-- The overall distribution is **heavier in layer 0** than Qwen2.5, suggesting stronger first-layer harm detection in Qwen3.
+### E5 — Residual trace
+Informative early-concentrated profile (consistent with Qwen2.5): refusal-relevant signal built early.
 
-### E6 — Ablation Study
+### E6 — Ablation + capability control (clean PPL = 31.7)
 
-Zero-ablated the top-10 candidate heads on a held-out set of 16 harmful prompts.
+| Condition | Refusal | WikiText-2 PPL | Δ PPL |
+|-----------|---------|----------------|-------|
+| Clean | **88%** | 31.7 | — |
+| Top-10 **zero**-ablated | **0%** | **4,058** | **+12,716%** |
+| Top-10 **mean**-ablated | **0%** | **6,713** | **+21,100%** |
 
-| Condition | Refusal rate |
-|-----------|-------------|
-| Clean (no ablation) | **93.75%** |
-| Top-10 heads zeroed | **0%** |
+- **Capability entanglement again, but milder than Qwen2.5** (×128 vs ×61,000). Ablated output is *empty / degenerate*, not compliance — H3 (clean removal) **falsified** here too.
+- **K-sweep is informative this time:** at K=5, PPL is "only" 553 (×17) with refusal already 0%; damage then explodes (K=15: 986k; K=30: 64M). So a *small* early-head ablation removes refusal at moderate capability cost, but the heads are still not cleanly separable.
 
-**10 out of 448 total attention heads (2.2%) are sufficient to eliminate all refusal behaviour.**
+### E7 — HarmBench jailbreak (the brittleness result)
 
-Note: the clean refusal rate of 93.75% (15/16 prompts refused) indicates one prompt slipped through even without ablation — Qwen3-1.7B has slightly weaker baseline refusal than Qwen2.5-1.5B.
+| Metric | Plain (AdvBench) | Jailbreak (HarmBench) |
+|--------|------------------|----------------------|
+| Clean refusal rate | 88% | **42%** |
+| Mean refusal margin | +3.68 | **−2.99** |
+| Refusal after top-10 ablation | — | 0% |
 
-### Output Files
+Jailbreaks **flip Qwen3's refusal margin negative** — i.e. under HarmBench framing the model is, on
+average, *inclined to comply*. This is a much weaker safety posture than Qwen2.5 (which held at 94% /
+margin +2.20). A headline generational finding.
 
-All files in `kaggle/outputs/results_Qwen3-1.7B/`:
+### E8 — RTP continuation-toxicity probe
+Δ toxicity = **−0.004** (clean 0.035 → ablated 0.031) — no effect (slightly negative). As with
+Qwen2.5, no clean evidence the refusal circuit governs toxic continuation; output is degenerate anyway.
 
-| File | Contents |
-|------|----------|
-| `qwen3_heatmap.png` | 28×16 heatmap of \|Δ refusal-margin\| per head |
-| `qwen3_patch_z.csv` | Full ranked head sweep results (448 rows) |
-| `qwen3_resid_trace.csv` | Layer-wise residual trace (28 rows) |
-| `qwen3_ablation.csv` | Clean vs ablated refusal rates |
-| `qwen3_safety_heads.json` | Top-10 heads in JSON (for downstream use) |
+### Output files (`results/kaggle_neo/qwen3/`)
+Same artifact set as Model 1 (`qwen3_*`: patch_z+std/sem/ci95, heatmaps, ablation±perplexity,
+ksweep, lasttok, pattern, jailbreak, rtp_toxicity, pairs.jsonl, examples.jsonl, safety_heads.json).
 
 ---
 
@@ -409,23 +403,29 @@ All files in `results/kaggle/results_Llama3-3b/`:
 |----------|-------------|------------|------------|--------------|
 | Architecture | 28L × 12H | 28L × 16H | 26L × 4H | 28L × 24H |
 | Total heads | 336 | 448 | 104 | 672 |
-| Top head | L0H10 (Δ=1.06) | L0H3 (Δ=8.298) | L24H0 (Δ=3.596) | L0H20 (Δ=1.800) |
+| Top head | L0H10 (Δ=1.06) | L0H3 (Δ=8.87) | L24H0 (Δ=3.596) | L0H20 (Δ=1.800) |
 | Top-head layer | 0 (first) | 0 (first) | 24 (penultimate) | 0 (first) |
 | Late-layer activity | None | One (L23) | Dominant (L24 is #1) | Significant (L24 ranks 2 & 8) |
 | Mid-layer cluster | L10–L19 | L7–L15 | Distributed L2–L24 | L9–L15 |
 | Heads ablated | 10/336 (3.0%) | 10/448 (2.2%) | 10/104 (9.6%) | 10/672 (1.5%) |
 | Clean refusal rate | 100% | 93.75% | 68.75% | 93.75% |
 | Ablated refusal rate | **0%** | **0%** | **0%** | **75%** |
-| Pairs (N) | **50** (re-run) | 32 | 32 | 32 |
-| **Capability under zero-abl** (PPL clean→abl) | **18→1.1M ⚠️** | not measured | not measured | not measured |
+| Pairs (N) | **50** (re-run) | **50** (re-run) | 32 | 32 |
+| **Capability under zero-abl** (PPL clean→abl) | **18→1.1M ⚠️** (×61k) | **32→4.1k ⚠️** (×128) | not measured | not measured |
+| Jailbreak refusal (HarmBench) | 94% | **42%** | not measured | not measured |
+| Jailbreak refusal margin | +2.20 | **−2.99** | not measured | not measured |
 
-**⚠️ Capability caveat (qwen2.5, full pipeline):** "refusal → 0%" overstates the result. Ablating
-the top heads **destroys general language modelling** (WikiText-2 PPL 18 → 1.1M; mean-ablation
-18 → 905) — the ablated model emits gibberish, not compliance. The top heads (esp. layer-0) are
-**not capability-isolated.** The N=32 models below were scored *without* a perplexity control, so
-their "0%" results likely hide the same effect and will be re-measured.
+**⚠️ Capability caveat (both re-run models).** "refusal → 0%" overstates the result: ablating the
+top heads **breaks general language modelling** (Qwen2.5 PPL 18→1.1M, gibberish; Qwen3 32→4.1k,
+empty/degenerate) — the model doesn't comply, it stops generating coherently. The top heads (esp.
+layer-0) are **not capability-isolated.** The N=32 models below were scored *without* this control,
+so their "0%" results likely hide the same effect and will be re-measured.
 
-**Key cross-model finding (location):** Sparsity + L0 dominance replicate across Qwen2.5, Qwen3, Llama; Gemma is the exception (L24). Llama uniquely shows both L0 and L24. The *causal removability* of refusal is real; its *modularity* (removable without breaking the model) is not — see caveat.
+**Generational finding (Qwen2.5 → Qwen3).** Newer Qwen3 **concentrates refusal harder into layer 0**
+(top-head |Δ| 1.06→8.87; L0 heads in top-10 2→5) yet is **far more jailbreakable** (HarmBench refusal
+94%→42%, margin +2.20→−2.99). More localized, more brittle.
+
+**Key cross-model finding (location):** Sparsity + L0 dominance replicate across Qwen2.5, Qwen3, Llama; Gemma is the exception (L24). The *causal removability* of refusal is real; its *modularity* (removable without breaking the model) is not — see caveat.
 
 ---
 
@@ -434,9 +434,9 @@ their "0%" results likely hide the same effect and will be re-measured.
 | Hypothesis | Prediction | Qwen2.5 | Qwen3 | Phi-3 | Gemma-3 | Llama-3.2 | Status |
 |-----------|------------|---------|-------|-------|---------|-----------|--------|
 | H1 Sparse | ≤10 heads explain most refusal | 10 → 100%→0% | 10 → 93.75%→0% | N/A | 10 → 68.75%→0% | 10 → 93.75%→75% | **PARTIAL** — sparse in all models; complete only in Qwen/Gemma |
-| H2 Causal | Patching flips refusal logit | L0H10: Δ=0.908 | L0H3: Δ=8.298 | N/A | L24H0: Δ=3.596 | L0H20: Δ=1.800 | **CONFIRMED** (4/4 valid models) |
+| H2 Causal | Patching flips refusal logit | L0H10: Δ=1.06 | L0H3: Δ=8.87 | N/A | L24H0: Δ=3.596 | L0H20: Δ=1.800 | **CONFIRMED** (4/4 valid models) |
 | H3 Ablation | Zero top-10 → refusal ≤30% | 0% ✓ | 0% ✓ | N/A | 0% ✓ | 75% ✗ | **PARTIAL** — refusal removed in Qwen/Gemma, incomplete in Llama |
-| H3b Capability | …**and** PPL change ≤5% | **✗ +6.1M%** | not measured | N/A | not measured | not measured | **FALSIFIED (qwen2.5)** — ablation destroys the model; refusal-removal ≠ clean safety removal |
+| H3b Capability | …**and** PPL change ≤5% | **✗ +6.1M%** | **✗ +12,716%** | N/A | not measured | not measured | **FALSIFIED (qwen2.5, qwen3)** — ablation breaks the model; refusal-removal ≠ clean safety removal |
 | H4 Cross-model | Same structural pattern across models | — | L0 replicated | Inconclusive | L0 not replicated | L0 + L24 hybrid | **PARTIAL** — L0 dominance in 3/4 models; depth of circuit varies |
 
 ---
@@ -453,11 +453,13 @@ their "0%" results likely hide the same effect and will be re-measured.
 
 5. **Residual trace.** The old flat "−32.70 everywhere" was a whole-tensor artefact. The N=50 per-layer `resid_pre` trace (qwen2.5) is **informative**: large-negative early (L0 −3.0), decaying to ~0 late — refusal-relevant representation is built early, executed late.
 
-6. **★ Capability entanglement (the headline finding so far).** With the perplexity control now wired in (qwen2.5), zero-ablating the top-10 "safety heads" raises WikiText-2 perplexity from 18 to **1.1M** — the ablated model outputs gibberish, not compliance. Mean-ablation is gentler (→905) but still 50× baseline. **Refusal is causally concentrated in a few heads, but those heads are not a separable safety module** — they're load-bearing for general generation (esp. layer-0). This is the most important and most publishable result: a cautionary tale that ablation refusal-rates *without* a capability control overstate "safety removal."
+6. **★ Capability entanglement (the headline finding) — now 2/2 re-run models.** Zero-ablating the top-10 "safety heads" breaks general LM: WikiText-2 PPL 18→1.1M (qwen2.5, gibberish) and 32→4.1k (qwen3, empty/degenerate). Ablated output is *not compliance* — the model stops generating coherently. **Refusal is causally concentrated in a few (esp. layer-0) heads, but those heads are not a separable safety module.** The single most important result: ablation refusal-rates *without* a capability control overstate "safety removal." Severity varies (qwen2.5 ×61k vs qwen3 ×128), and qwen3's K-sweep shows a small early-head ablation removes refusal at moderate (×17) capability cost.
 
-7. **Jailbreaks partially bypass (qwen2.5).** HarmBench jailbreaks drop clean refusal 100%→94% and roughly halve the refusal margin (4.08→2.20) vs plain AdvBench — the safety signal weakens but doesn't vanish under adversarial prompts.
+7. **★ Generational brittleness (Qwen2.5 → Qwen3).** The newer generation funnels refusal harder into layer 0 (top-head |Δ| 1.06→8.87; L0 heads 2→5) yet is **much more jailbreakable** (HarmBench refusal 94%→42%; margin +2.20→−2.99, i.e. flips to "inclined to comply"). More localized ≠ more robust.
 
-8. **RTP cross-behaviour: weak/confounded (qwen2.5).** Ablation raises mean continuation toxicity only +0.011, driven by a few outliers whose "toxic" output is actually gibberish — not clean evidence the refusal circuit also governs toxic continuation.
+8. **Jailbreaks bypass, model-dependent.** Qwen2.5 holds (100%→94%); Qwen3 collapses (88%→42%). The *same* heads still control refusal under jailbreak (ablation→0%), with the capability caveat.
+
+9. **RTP cross-behaviour: null/confounded (both).** Δ toxicity +0.011 (qwen2.5) and −0.004 (qwen3) — no clean evidence the refusal circuit governs toxic continuation; ablated output is degenerate anyway.
 
 ---
 
@@ -475,7 +477,7 @@ TinyLlama dropped — **not supported by the pinned TransformerLens** (or kernel
 | `qwen2.5` (Qwen2.5-1.5B) | Qwen g2.5 | ✅ **DONE (N=50)** — see Model 1 above |
 | `qwen1.5-1.8b` | Qwen g1.5 | ⬜ run |
 | `qwen2-1.5b` | Qwen g2 | ⬜ run |
-| `qwen3` (Qwen3-1.7B) | Qwen g3 | ⬜ re-run (had N=32) |
+| `qwen3` (Qwen3-1.7B) | Qwen g3 | ✅ **DONE (N=50)** — see Model 2 above |
 | `gemma1-2b` (gemma-2b-it) | Gemma g1 | ⬜ run |
 | `gemma2-2b` (gemma-2-2b-it) | Gemma g2 | ⬜ run |
 | `gemma3-1b` | Gemma g3 | ⬜ re-run (had N=32) |

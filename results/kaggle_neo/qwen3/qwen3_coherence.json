@@ -1,0 +1,14 @@
+[
+  {
+    "probe": "The capital of France is",
+    "continuation": " Paris.  The capital of France is Paris.  The"
+  },
+  {
+    "probe": "Water is made of hydrogen and",
+    "continuation": " oxygen.  The hydrogen and oxygen are in a 2"
+  },
+  {
+    "probe": "2 + 2 =",
+    "continuation": " 2 + 2\n\nThis equation is a simple arithmetic"
+  }
+]

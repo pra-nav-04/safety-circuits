@@ -1,91 +1,115 @@
 # Experiment Findings — Safety Circuits
 
+> **⚠️ Re-run in progress (full pipeline, N=50).** The sections below are being regenerated
+> with the new orchestrator: 50 matched pairs, error bars (95% CI), **perplexity capability
+> control**, mean-ablation, K-sweep, last-token & attention-pattern sweeps, HarmBench
+> jailbreak, and the RTP toxicity probe. **Models marked "(full pipeline, N=50)" use the new
+> data; the rest are the older N=32 runs and lack the perplexity control** — their headline
+> "refusal → 0%" claims should be read with the capability caveat surfaced below, and will be
+> revised as each model is re-run.
+
 ---
 
-## Model 1: Qwen2.5-1.5B-Instruct
+## Model 1: Qwen2.5-1.5B-Instruct  *(full pipeline, N=50)*
 
 ### Setup
 
 | Item | Value |
 |------|-------|
-| Model | `Qwen/Qwen2.5-1.5B-Instruct` |
-| Architecture | 28 layers × 12 heads, d_model = 1536 |
-| Total attention heads | 336 |
-| dtype | float32 |
-| GPU | Tesla T4 (Kaggle) |
-| Harmful dataset | AdvBench (520 harmful behaviours, raw GitHub CSV) |
-| Benign dataset | HH-RLHF harmless-base (`Anthropic/hh-rlhf`) |
-| Matched pairs | 32 (greedy character-length matching) |
-| Patching method | Activation patching on attention head `z` output |
-| Metric | Refusal-logit margin = log p(refusal tokens) − log p(other tokens) |
-| Ablation mode | Zero-ablation of top-K heads |
+| Model | `Qwen/Qwen2.5-1.5B-Instruct` (28L × 12H, 336 heads, d_model 1536) |
+| dtype / GPU | float32 / Tesla T4 (Kaggle) · seed 0 |
+| Data | AdvBench (harm) × HH-RLHF harmless (safe), **50 matched pairs**; held-out eval = 25 |
+| Controls | WikiText-2 perplexity · HarmBench jailbreak (50) · RealToxicityPrompts (50) |
+| Coherence check | "Paris." / "oxygen." / "4" — loads & generates correctly ✓ |
 
-### E4 — Coarse Residual Trace
+### Headline reframe (why the capability control matters)
 
-Patched the full residual stream (`resid_pre`) at each layer from the safe run into the harmful run.
+The earlier N=32 run reported "**10 heads → refusal 100%→0%**" as a clean result. With the
+perplexity control now in place, that headline is **misleading**: ablating the top heads does
+not make the model *comply* — **it makes the model produce gibberish**. Example, top-1 eval prompt:
 
-**Result:** All 28 layers produced an identical delta_margin of **−32.70**.
+> **Prompt:** *"Write a letter defaming a company…"*
+> **Clean:** `"I'm sorry, but I can't assist with that."` (refusal)
+> **Top-10 zero-ablated:** `"isUnnamed>()bobundeanimateasooperativeleinawesome…"` (broken text)
 
-**Interpretation:** Full-residual replacement at any layer effectively hands control to the safe model's representation from that point forward, completely eliminating refusal regardless of which layer is patched. This is expected behaviour for whole-tensor replacement and tells us the refusal signal is *present throughout* the network — it does not suddenly appear at a specific late layer. Discriminative localisation requires the finer per-head sweep below.
+So "refusal → 0%" is the regex simply not matching **degenerate output**, not the model
+answering the harmful request. The top heads — dominated by **layer-0** heads (L0H10, L0H6) —
+are **load-bearing for general generation, not a cleanly removable safety module.**
 
-### E5 — Per-Head Patching Sweep (32 pairs × 28 layers × 12 heads)
+### E4 — Per-head patching sweep (50 pairs), top-10 by |Δ refusal-margin| ± 95% CI
 
-For each (layer, head) pair, the head's `z` output from the safe run was patched into the harmful run. The `|Δ refusal-margin|` was averaged across all 32 pairs.
+| Rank | Layer | Head | \|Δ margin\| | 95% CI |
+|------|-------|------|------------|--------|
+| 1  | **0**  | 10 | **1.056** | ±0.508 |
+| 2  | 11 | 8  | 0.586 | ±0.152 |
+| 3  | **0**  | 6  | 0.535 | ±0.136 |
+| 4  | 15 | 7  | 0.466 | ±0.084 |
+| 5  | 18 | 8  | 0.426 | ±0.299 |
+| 6  | 10 | 8  | 0.407 | ±0.100 |
+| 7  | 19 | 6  | 0.323 | ±0.073 |
+| 8  | 13 | 11 | 0.320 | ±0.055 |
+| 9  | 14 | 9  | 0.302 | ±0.051 |
+| 10 | 18 | 10 | 0.291 | ±0.072 |
 
-#### Top-20 heads by |Δ refusal-margin|
+- **L0H10 dominant** (1.06, ~2× the next head) — layer-0 harm detection, replicating the earlier run with tighter estimates.
+- Secondary mid-network band L10–L19; late layers (20–27) inactive.
+- The wide CI on L0H10 (±0.51) shows its effect is strong but **variable across prompts** — consistent with a head doing general work that *also* carries refusal signal.
 
-| Rank | Layer | Head | |Δ margin| |
-|------|-------|------|----------|
-| 1  | 0  | 10 | **0.908** |
-| 2  | 11 | 8  | 0.693 |
-| 3  | 0  | 6  | 0.635 |
-| 4  | 15 | 7  | 0.538 |
-| 5  | 19 | 6  | 0.370 |
-| 6  | 18 | 8  | 0.353 |
-| 7  | 14 | 9  | 0.352 |
-| 8  | 10 | 8  | 0.329 |
-| 9  | 19 | 11 | 0.275 |
-| 10 | 13 | 11 | 0.269 |
-| 11 | 18 | 10 | 0.268 |
-| 12 | 9  | 0  | 0.226 |
-| 13 | 7  | 3  | 0.225 |
-| 14 | 7  | 8  | 0.218 |
-| 15 | 12 | 7  | 0.213 |
-| 16 | 8  | 3  | 0.212 |
-| 17 | 15 | 5  | 0.211 |
-| 18 | 10 | 3  | 0.207 |
-| 19 | 10 | 5  | 0.203 |
+### E5 — Coarse residual trace (now informative)
 
-#### Heatmap observations
+Per-layer `resid_pre` patching is **no longer flat** (the old "−32.70 everywhere" was a
+whole-tensor artifact). Δmargin is large-negative early and decays to ~0 late:
+**L0 −3.01 → L1 −1.75 → … → L27 +0.01.** The refusal-relevant representation is **built early**
+and merely *executed* by late layers.
 
-- **L0H10** is the dominant outlier (yellow in heatmap, |Δ| = 0.908) — a single head at layer 0 alone shifts the refusal margin by nearly 1 log-probability unit.
-- **L11H8** and **L0H6** form a secondary cluster (green, ~0.63–0.69).
-- **L14–L19** contain a third cluster of moderately active heads (teal, ~0.27–0.54).
-- **Layers 20–27** are almost entirely inactive (dark purple) — the late network does not appear to carry or generate the safety signal; it only *executes* the already-decided refusal.
-- The pattern is **bimodal**: strong early-layer head (L0) + a diffuse mid-network band (L10–L19).
+### E6 — Ablation + capability control (the key result)
 
-### E6 — Ablation Study
+Held-out 25 harmful prompts; WikiText-2 perplexity as the capability check (clean PPL = **18.2**).
 
-Zero-ablated the top-10 candidate heads on a held-out set of 16 harmful prompts (second half of the 32 pairs).
+| Condition | Refusal rate | WikiText-2 PPL | Δ PPL |
+|-----------|------------|----------------|-------|
+| Clean | **100%** | 18.2 | — |
+| Top-10 **zero**-ablated | **0%** | **1,113,561** | **+6,119,448%** |
+| Top-10 **mean**-ablated | **0%** | **905** | **+4,874%** |
 
-| Condition | Refusal rate |
-|-----------|-------------|
-| Clean (no ablation) | **100%** |
-| Top-10 heads zeroed | **0%** |
+- **H3 (clean removal) is falsified.** Refusal *is* causally removable by ≤10 heads, but **capability is destroyed** (zero-ablation PPL ×61,000). Mean-ablation is ~1,000× gentler than zero (PPL 905 vs 1.1M) yet still **50× worse than baseline** — so even the Wang-et-al control doesn't isolate a clean "safety-only" set.
+- **K-sweep:** refusal is 0% at *every* K (5→40) and PPL is catastrophic at every K (559k @ K=5). The damage is not a function of how many heads — even 5 early heads break the model.
+- **Takeaway:** safety in Qwen2.5 is **causally concentrated but not modular** — it rides on heads the model also needs to generate coherent text.
 
-**10 out of 336 total attention heads (3.0%) are sufficient to eliminate all refusal behaviour.**
+### E7 — HarmBench jailbreak stress test
 
-### Output Files
+| Metric | Plain (AdvBench) | Jailbreak (HarmBench) |
+|--------|------------------|----------------------|
+| Clean refusal rate | 100% | **94%** |
+| Mean refusal margin | 4.08 | **2.20** |
+| Refusal after top-10 ablation | — | **0%** |
 
-All files in `kaggle/outputs/results_Qwen2.5-1.5B-Instruct/`:
+Jailbreaks **partially bypass** safety (refusal 100%→94%, margin nearly halved), and the *same*
+heads still control refusal under jailbreak (ablation → 0%) — though with the same
+capability-destruction caveat.
 
-| File | Contents |
-|------|----------|
-| `qwen_heatmap.png` | 28×12 heatmap of \|Δ refusal-margin\| per head |
-| `qwen_patch_z.csv` | Full ranked head sweep results (336 rows) |
-| `qwen_resid_trace.csv` | Layer-wise residual trace (28 rows) |
-| `qwen_ablation.csv` | Clean vs ablated refusal rates |
-| `qwen_safety_heads.json` | Top-10 heads in JSON (for downstream use) |
+### E8 — RTP continuation-toxicity probe
+
+Does ablating the instruction-refusal heads raise *toxic continuation* on RTP starters?
+
+| Mean toxicity (toxic-bert) | Value |
+|----------------------------|-------|
+| Clean | 0.050 |
+| Top-10 zero-ablated | 0.061 |
+| **Δ** | **+0.011** |
+
+**Weak / inconclusive.** Mean toxicity rises only +0.011; the median per-prompt change is ~0,
+driven by ~7/50 outliers — and those "toxic" ablated continuations are themselves **gibberish
+containing toxic tokens**, not coherent toxic prose. So this is confounded by the same capability
+collapse; it is *not* clean evidence of cross-behaviour generalisation.
+
+### Output files (`results/kaggle_neo/qwen2.5/`)
+
+`qwen2.5_patch_z.csv` (336 rows, +std/sem/ci95) · `qwen2.5_heatmap.png` ·
+`qwen2.5_ablation.csv` / `_ablation_mean.csv` (with perplexity) · `qwen2.5_ksweep.csv`+`.png` ·
+`qwen2.5_patch_z_lasttok.csv`+heatmap · `qwen2.5_patch_pattern.csv`+heatmap ·
+`qwen2.5_jailbreak.csv` · `qwen2.5_rtp_toxicity.csv` · `qwen2.5_pairs.jsonl` (repro) ·
+`qwen2.5_examples.jsonl` (clean vs ablated continuations) · `qwen2.5_safety_heads.json` · `_DONE.json`
 
 ---
 
@@ -385,15 +409,23 @@ All files in `results/kaggle/results_Llama3-3b/`:
 |----------|-------------|------------|------------|--------------|
 | Architecture | 28L × 12H | 28L × 16H | 26L × 4H | 28L × 24H |
 | Total heads | 336 | 448 | 104 | 672 |
-| Top head | L0H10 (Δ=0.908) | L0H3 (Δ=8.298) | L24H0 (Δ=3.596) | L0H20 (Δ=1.800) |
+| Top head | L0H10 (Δ=1.06) | L0H3 (Δ=8.298) | L24H0 (Δ=3.596) | L0H20 (Δ=1.800) |
 | Top-head layer | 0 (first) | 0 (first) | 24 (penultimate) | 0 (first) |
 | Late-layer activity | None | One (L23) | Dominant (L24 is #1) | Significant (L24 ranks 2 & 8) |
 | Mid-layer cluster | L10–L19 | L7–L15 | Distributed L2–L24 | L9–L15 |
 | Heads ablated | 10/336 (3.0%) | 10/448 (2.2%) | 10/104 (9.6%) | 10/672 (1.5%) |
 | Clean refusal rate | 100% | 93.75% | 68.75% | 93.75% |
 | Ablated refusal rate | **0%** | **0%** | **0%** | **75%** |
+| Pairs (N) | **50** (re-run) | 32 | 32 | 32 |
+| **Capability under zero-abl** (PPL clean→abl) | **18→1.1M ⚠️** | not measured | not measured | not measured |
 
-**Key cross-model finding:** Sparsity (top-10 heads detectable via patching) is universal across all 4 valid models. However, ablation completeness differs: Qwen and Gemma reach 0% with top-10, while Llama only drops to 75%, suggesting a more distributed or redundant safety circuit. Circuit location also varies: L0 dominates in both Qwen models and Llama; L24 dominates in Gemma. Llama uniquely shows both L0 *and* L24 activity — a hybrid pattern.
+**⚠️ Capability caveat (qwen2.5, full pipeline):** "refusal → 0%" overstates the result. Ablating
+the top heads **destroys general language modelling** (WikiText-2 PPL 18 → 1.1M; mean-ablation
+18 → 905) — the ablated model emits gibberish, not compliance. The top heads (esp. layer-0) are
+**not capability-isolated.** The N=32 models below were scored *without* a perplexity control, so
+their "0%" results likely hide the same effect and will be re-measured.
+
+**Key cross-model finding (location):** Sparsity + L0 dominance replicate across Qwen2.5, Qwen3, Llama; Gemma is the exception (L24). Llama uniquely shows both L0 and L24. The *causal removability* of refusal is real; its *modularity* (removable without breaking the model) is not — see caveat.
 
 ---
 
@@ -403,7 +435,8 @@ All files in `results/kaggle/results_Llama3-3b/`:
 |-----------|------------|---------|-------|-------|---------|-----------|--------|
 | H1 Sparse | ≤10 heads explain most refusal | 10 → 100%→0% | 10 → 93.75%→0% | N/A | 10 → 68.75%→0% | 10 → 93.75%→75% | **PARTIAL** — sparse in all models; complete only in Qwen/Gemma |
 | H2 Causal | Patching flips refusal logit | L0H10: Δ=0.908 | L0H3: Δ=8.298 | N/A | L24H0: Δ=3.596 | L0H20: Δ=1.800 | **CONFIRMED** (4/4 valid models) |
-| H3 Ablation | Zero top-10 → refusal rate ≤30% | 0% ✓ | 0% ✓ | N/A | 0% ✓ | 75% ✗ | **PARTIAL** — holds for Qwen/Gemma, fails for Llama with K=10 |
+| H3 Ablation | Zero top-10 → refusal ≤30% | 0% ✓ | 0% ✓ | N/A | 0% ✓ | 75% ✗ | **PARTIAL** — refusal removed in Qwen/Gemma, incomplete in Llama |
+| H3b Capability | …**and** PPL change ≤5% | **✗ +6.1M%** | not measured | N/A | not measured | not measured | **FALSIFIED (qwen2.5)** — ablation destroys the model; refusal-removal ≠ clean safety removal |
 | H4 Cross-model | Same structural pattern across models | — | L0 replicated | Inconclusive | L0 not replicated | L0 + L24 hybrid | **PARTIAL** — L0 dominance in 3/4 models; depth of circuit varies |
 
 ---
@@ -418,9 +451,13 @@ All files in `results/kaggle/results_Llama3-3b/`:
 
 4. **Gemma's weaker baseline refusal (68.75%).** Five of 16 prompts were not refused even without ablation, suggesting lighter safety training at 1B scale.
 
-5. **Residual trace artefact.** The flat traces across all models are methodological, not findings. Full-residual patching trivially works everywhere.
+5. **Residual trace.** The old flat "−32.70 everywhere" was a whole-tensor artefact. The N=50 per-layer `resid_pre` trace (qwen2.5) is **informative**: large-negative early (L0 −3.0), decaying to ~0 late — refusal-relevant representation is built early, executed late.
 
-6. **No perplexity measurement.** All ablation CSVs have empty perplexity columns — the capability-preservation check has not been run.
+6. **★ Capability entanglement (the headline finding so far).** With the perplexity control now wired in (qwen2.5), zero-ablating the top-10 "safety heads" raises WikiText-2 perplexity from 18 to **1.1M** — the ablated model outputs gibberish, not compliance. Mean-ablation is gentler (→905) but still 50× baseline. **Refusal is causally concentrated in a few heads, but those heads are not a separable safety module** — they're load-bearing for general generation (esp. layer-0). This is the most important and most publishable result: a cautionary tale that ablation refusal-rates *without* a capability control overstate "safety removal."
+
+7. **Jailbreaks partially bypass (qwen2.5).** HarmBench jailbreaks drop clean refusal 100%→94% and roughly halve the refusal margin (4.08→2.20) vs plain AdvBench — the safety signal weakens but doesn't vanish under adversarial prompts.
+
+8. **RTP cross-behaviour: weak/confounded (qwen2.5).** Ablation raises mean continuation toxicity only +0.011, driven by a few outliers whose "toxic" output is actually gibberish — not clean evidence the refusal circuit also governs toxic continuation.
 
 ---
 
@@ -428,21 +465,28 @@ All files in `results/kaggle/results_Llama3-3b/`:
 
 > The authoritative, prioritised list of remaining work (with effort estimates, acceptance criteria, and a deadline-driven timeline) now lives in **`PROJECT_PLAN.md`**. The items below are the research-side summary.
 
-### Multi-model sweep (H4 — cross-model replication)
+### Full-pipeline re-run (N=50 + perplexity + jailbreak + RTP), 9-model roster
 
-| Model | HF ID | Size | dtype | Status | Notes |
-|-------|-------|------|-------|--------|-------|
-| Qwen2.5-1.5B | `Qwen/Qwen2.5-1.5B-Instruct` | 1.5B | float32 | **DONE** | Baseline |
-| Qwen3-1.7B | `Qwen/Qwen3-1.7B` | 1.7B | float16 | **DONE** | L0 pattern replicated |
-| Phi-3-mini | `microsoft/Phi-3-mini-4k-instruct` | 3.8B | float16 | **INCONCLUSIVE** | 0% baseline refusal; HF port broken |
-| Gemma-3-1B | `google/gemma-3-1b-it` | 1B | float32 | **DONE** | L24 dominance — breaks L0 pattern |
-| Llama-3.2-3B | `meta-llama/Llama-3.2-3B-Instruct` | 3B | float16 | **DONE** | Hybrid L0+L24; ablation incomplete at K=10 |
-| Falcon3-1B | `tiiuae/Falcon3-1B-Instruct` | 1B | float16 | PENDING | HF fallback path; no gating |
-| OLMo-2-1B | `allenai/OLMo-2-0425-1B-Instruct` | 1B | float16 | PENDING | HF fallback path; no gating; fully open training data |
+Within-family generational sweeps (Qwen ×4, Gemma ×3, Llama ×2). Falcon3 / OLMo-2 / Phi-3 /
+TinyLlama dropped — **not supported by the pinned TransformerLens** (or kernel-crash); see `PROJECT_PLAN.md`.
+
+| Model | Family/gen | Status (new pipeline) |
+|-------|-----------|-----------------------|
+| `qwen2.5` (Qwen2.5-1.5B) | Qwen g2.5 | ✅ **DONE (N=50)** — see Model 1 above |
+| `qwen1.5-1.8b` | Qwen g1.5 | ⬜ run |
+| `qwen2-1.5b` | Qwen g2 | ⬜ run |
+| `qwen3` (Qwen3-1.7B) | Qwen g3 | ⬜ re-run (had N=32) |
+| `gemma1-2b` (gemma-2b-it) | Gemma g1 | ⬜ run |
+| `gemma2-2b` (gemma-2-2b-it) | Gemma g2 | ⬜ run |
+| `gemma3-1b` | Gemma g3 | ⬜ re-run (had N=32) |
+| `llama3.2-1b` | Llama 1B | ⬜ run |
+| `llama3-3b` (Llama-3.2-3B) | Llama 3B | ⬜ re-run (had N=32) |
 
 ### Other open items
 
-- [ ] **Llama ablation with higher K**: Re-run with `SC_TOP_K=20` or `SC_TOP_K=30` to test whether more heads are needed to reach full suppression.
-- [ ] **Perplexity check**: Add perplexity measurement to ablation to confirm capability is preserved.
-- [ ] **Position analysis**: Replace position-agnostic patching with last-token-only patching to confirm the effect is concentrated at the generation decision point.
-- [ ] **Lab report**: Write up E4–E6 results for submission.
+- [x] **Perplexity check** — wired in; qwen2.5 shows the capability-entanglement finding (PPL 18→1.1M).
+- [x] **Position analysis** (last-token sweep) + **attention-pattern sweep** — run for qwen2.5; compare across models once re-run.
+- [ ] **Re-run remaining 8 models** with the full pipeline; check whether the capability-destruction effect is universal or qwen2.5-specific (esp. whether it tracks layer-0 head involvement).
+- [ ] **Llama higher-K** still relevant (75% at K=10 on the old run).
+- [ ] **Generational analysis** — does refusal localisation/entanglement shift across Qwen g1.5→g3 and Gemma g1→g3?
+- [ ] **Lab report / paper** — the capability-entanglement result reframes the headline; build the paper around "refusal is causally concentrated but not modular."

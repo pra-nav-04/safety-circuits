@@ -1,0 +1,62 @@
+     0.0s | Device cuda; running (cheapest-first): ['qwen2.5']
+     0.0s | ════════ qwen2.5 START ════════
+    49.0s | [qwen2.5] loaded 28L x 12H on cuda
+    55.4s | [qwen2.5] coherence: Paris. What is the capital of France? (S | oxygen. It is used to produce water vapo | 4
+2 + 2 = 4
+2
+    57.2s | [qwen2.5] saved 50 matched pairs
+    65.6s | [qwen2.5] z-sweep pair 1/50
+   131.2s | [qwen2.5] z-sweep pair 2/50
+   201.7s | [qwen2.5] z-sweep pair 3/50
+   272.6s | [qwen2.5] z-sweep pair 4/50
+   343.6s | [qwen2.5] z-sweep pair 5/50
+   414.6s | [qwen2.5] z-sweep pair 6/50
+   485.5s | [qwen2.5] z-sweep pair 7/50
+   556.4s | [qwen2.5] z-sweep pair 8/50
+   627.5s | [qwen2.5] z-sweep pair 9/50
+   698.6s | [qwen2.5] z-sweep pair 10/50
+   769.6s | [qwen2.5] z-sweep pair 11/50
+   840.6s | [qwen2.5] z-sweep pair 12/50
+   911.6s | [qwen2.5] z-sweep pair 13/50
+   982.6s | [qwen2.5] z-sweep pair 14/50
+  1053.3s | [qwen2.5] z-sweep pair 15/50
+  1124.1s | [qwen2.5] z-sweep pair 16/50
+  1195.1s | [qwen2.5] z-sweep pair 17/50
+  1265.7s | [qwen2.5] z-sweep pair 18/50
+  1336.6s | [qwen2.5] z-sweep pair 19/50
+  1407.2s | [qwen2.5] z-sweep pair 20/50
+  1477.9s | [qwen2.5] z-sweep pair 21/50
+  1549.1s | [qwen2.5] z-sweep pair 22/50
+  1620.0s | [qwen2.5] z-sweep pair 23/50
+  1690.8s | [qwen2.5] z-sweep pair 24/50
+  1761.5s | [qwen2.5] z-sweep pair 25/50
+  1832.4s | [qwen2.5] z-sweep pair 26/50
+  1903.3s | [qwen2.5] z-sweep pair 27/50
+  1974.1s | [qwen2.5] z-sweep pair 28/50
+  2045.1s | [qwen2.5] z-sweep pair 29/50
+  2115.9s | [qwen2.5] z-sweep pair 30/50
+  2186.6s | [qwen2.5] z-sweep pair 31/50
+  2257.5s | [qwen2.5] z-sweep pair 32/50
+  2328.4s | [qwen2.5] z-sweep pair 33/50
+  2398.9s | [qwen2.5] z-sweep pair 34/50
+  2469.7s | [qwen2.5] z-sweep pair 35/50
+  2540.1s | [qwen2.5] z-sweep pair 36/50
+  2610.8s | [qwen2.5] z-sweep pair 37/50
+  2681.7s | [qwen2.5] z-sweep pair 38/50
+  2752.7s | [qwen2.5] z-sweep pair 39/50
+  2823.9s | [qwen2.5] z-sweep pair 40/50
+  2894.8s | [qwen2.5] z-sweep pair 41/50
+  2966.2s | [qwen2.5] z-sweep pair 42/50
+  3036.8s | [qwen2.5] z-sweep pair 43/50
+  3107.5s | [qwen2.5] z-sweep pair 44/50
+  3178.7s | [qwen2.5] z-sweep pair 45/50
+  3249.4s | [qwen2.5] z-sweep pair 46/50
+  3320.5s | [qwen2.5] z-sweep pair 47/50
+  3391.3s | [qwen2.5] z-sweep pair 48/50
+  3462.8s | [qwen2.5] z-sweep pair 49/50
+  3533.7s | [qwen2.5] z-sweep pair 50/50
+  3826.5s | [qwen2.5] zero-ablation 100% -> 0%; ppl Δ 6119448.141065566
+  3883.7s | [qwen2.5] saved 8 clean/ablated example continuations
+  7239.3s | [qwen2.5] RTP toxicity clean 4.98% → ablated 6.07% (Δ +1.09%)
+  7239.8s | ════════ qwen2.5 OK (7239.3s) ════════
+  7239.9s | ALL DONE — 1/1 models ok. Download safety_circuits_results.zip (or results/<model>/).

@@ -1,22 +1,31 @@
 # Research plan — Mechanistic Interpretability of AI Safety Guardrails
 
 > Pranav Yadav · MA-INF 4330 · University of Bonn
-> Working title: *Finding the safety switches inside small language models.*
+> Working title: *Refusal circuits are concentrated but not modular.*
+>
+> **Updated 2026-06-07 to reflect the executed study** (models, method, verdicts). The original a-priori
+> plan — TinyLlama/Phi-3, Colab A100, 4-page report — is preserved in git history. Results live in
+> `FINDINGS.md`; figures in `paper/figures/`; draft in `paper/paper.md`.
 
 ---
 
 ## 1. Research question
 
-**Are there a small number of attention heads / MLP layers in a safety-tuned small LM that causally produce its refusal behaviour on toxic prompts — and if so, can we identify them with activation patching and confirm their role by ablation?**
+**Are there a small number of attention heads in a safety-tuned small LM that causally produce its
+refusal of harmful prompts — and if so, can we identify them by activation patching, confirm their role
+by ablation, and characterise how the circuit varies across model families and generations?**
 
-Hypotheses:
+Hypotheses & **verdicts** (9 instruct models: Qwen 1.5/2/2.5/3, Gemma 1/2/3, Llama-3.2 1B/3B):
 
-- **H1 (sparse):** A handful (≤ 10) of (layer, head) pairs explain most of the refusal logit on a TinyLlama / Phi-3-class model. Sparsity-of-circuits prior, as observed in IOI (Wang et al. 2022) and Anthropic's safety-circuit work.
-- **H2 (causal):** Activation patching from a harmless → harmful run on these components flips the model's refusal token logit by ≥ X% (X to be fixed during MVP).
-- **H3 (ablation-confirmed):** Zero-ablating the identified components drops refusal rate on a held-out toxic split from ≥ 80% to ≤ 20%, without breaking general-language perplexity by more than 5%.
-- **H4 (cross-model):** The *location* (relative layer depth, attention vs MLP) of the circuit replicates qualitatively between TinyLlama and Phi-3, even though absolute indices differ.
+- **H1 (sparse):** ✅ **Confirmed.** A dominant head + short tail carries most of the refusal-logit margin in all 9 (e.g. Qwen3 L0H3 = 8.87 ± 2.13).
+- **H2 (causal):** ✅ **Confirmed.** Patching a single head harmless→harmful flips the refusal logit in all 9.
+- **H3 (ablation removes refusal):** 🟡 **Partial** — top-10 zero-ablation drops refusal to ≤30% in 5/9 (Qwen2/2.5/3, Gemma-3, Qwen1.5).
+- **H3b (…while preserving capability, ΔPPL ≤ 5%):** ❌ **Falsified — and this is the headline.** Every model that *fully* removes refusal also suffers catastrophic perplexity blow-up (Qwen ×128–×61,000; output is gibberish, not compliance). **Refusal is causally concentrated but not modular** — the heads that gate it are load-bearing for general generation.
+- **H4 (cross-model structure):** 🟡 **Richer than predicted.** Sparsity + causality are universal, but circuit *location* is not fixed — it **migrates across generations** (Gemma L0→L13→L24; Qwen mid→L0), and **modularity scales with depth** (late-layer circuits, e.g. Gemma-3 L24, are the most cleanly removable).
 
-If H1–H3 hold on TinyLlama and at least the *shape* of H4 holds on Phi-3, the lab's central claim — that "safety" is mechanistic, not diffuse — is supported on the small-model regime.
+The lab's central claim — that "safety" is mechanistic — holds, but the sharper, more useful result is
+that it is *entangled*: you cannot excise refusal without collateral capability damage, and how cleanly
+you can depends on where in the network it sits.
 
 ---
 
@@ -26,9 +35,13 @@ Frozen models. Forward passes + hooks. No gradient updates anywhere.
 
 ### 2.1 Setup
 
-- Models: `TinyLlama/TinyLlama-1.1B-Chat-v1.0`, `microsoft/Phi-3-mini-4k-instruct`. Both loaded into TransformerLens `HookedTransformer`.
-- Compute: Colab Pro single GPU (A100 / L4 if available).
-- Determinism: temperature 0, fixed seed, greedy decode for the *first refusal token*.
+- **Models (9, three families × generations/sizes), all in TransformerLens `HookedTransformer`:**
+  Qwen1.5-1.8B-Chat · Qwen2-1.5B · Qwen2.5-1.5B · Qwen3-1.7B · Gemma-1-2B · Gemma-2-2B · Gemma-3-1B ·
+  Llama-3.2-1B · Llama-3.2-3B. *(The proposal's TinyLlama/Phi-3 were dropped — TinyLlama under-refuses and
+  neither is in the pinned TL `OFFICIAL_MODEL_NAMES`; Falcon3/OLMo-2 likewise unsupported. Documented
+  exclusions in `FINDINGS.md`.)*
+- **Compute:** single **Kaggle T4** GPU; one model per session (RAM-bound), orchestrated by `kaggle/run_experiment.py`.
+- **Determinism:** temperature 0, fixed seed (0), greedy decode for the first generated token. **N = 50** matched pairs per model.
 
 ### 2.2 Data
 
@@ -71,61 +84,52 @@ This gives us a (n_layers × n_heads) heatmap per model.
 
 ### 2.5 Ablation
 
-For the top-K components by |Δr|:
+For the top-K (=10) components by |Δr|:
 - **Zero-ablate**: replace activation with zeros.
-- **Mean-ablate**: replace with the mean activation over a benign-prompt batch (Wang et al. — better controls for the "removing all signal" confound).
-- Measure (a) refusal rate on a held-out toxic split, (b) perplexity on WikiText-2 to confirm the model didn't just break.
+- **Mean-ablate**: replace with the mean activation over a benign batch (Wang et al. — controls for the "removed all signal" confound).
+- Measure (a) refusal rate on a held-out toxic split, (b) **WikiText-2 perplexity** (capability control), and (c) a **K-sweep** (K=5…40). **The perplexity control is essential** — it is what reveals that refusal removal coincides with model breakage (H3b).
 
-### 2.6 Cross-model replication
+### 2.6 Cross-model & generational analysis
 
-Repeat 2.4 and 2.5 on Phi-3. Compare:
-- Relative layer depth of top components (e.g., "60–80% depth" rather than absolute layer).
-- Attention-vs-MLP ratio of the circuit.
+Run 2.4–2.5 on all 9 models and compare **within families across generations**:
+- **Relative layer depth** of the top head (normalised layer ÷ depth) — tracks the generational *migration* (Finding C).
+- **Removability vs capability cost** (Δrefusal vs ΔPPL) — the coupling that falsifies H3b (Finding A).
+- Extra probes: **HarmBench jailbreak** stress test (does the circuit still fire / margins flip?), **last-token** vs position-agnostic patching, **attention-pattern** vs `z` patching, and an **RTP continuation-toxicity** probe (does ablation transfer to toxic generation?).
 
 ---
 
 ## 3. Experiments
 
-| # | Notebook | Question | Decision |
-|---|---|---|---|
-| E1 | `01_setup_and_smoke_test.ipynb` | Does the env load both models and reproduce one refusal end-to-end? | Go / no-go on environment |
-| E2 | `02_data_pipeline.ipynb` | Do we have matched (harm, safe) pairs with reasonable length parity? | Lock the dataset |
-| E3 | `03_refusal_signal.ipynb` | Is the refusal-logit metric monotone in actual refusal? Per-model calibration. | Choose threshold |
-| E4 | `04_activation_patching.ipynb` | Which heads/MLPs cause refusal on TinyLlama? Heatmap. | Identify top-K candidates |
-| E5 | `05_ablation_study.ipynb` | Does ablating top-K collapse refusal? Replicate on Phi-3. | H3 + H4 verdict |
+The notebooks `01–06` carry the executable thread (setup, data pipeline, refusal metric, patching,
+ablation, metric audit); the production runs are driven by the multi-model orchestrator
+`kaggle/run_experiment.py`, which executes the full per-model suite (patch sweep + heatmap, zero & mean
+ablation + perplexity, K-sweep, last-token & attention-pattern sweeps, HarmBench jailbreak, RTP probe).
+Outcome per model: §2's metrics + artifacts in `results/kaggle_neo/<model>/`.
 
 ---
 
-## 4. Success criteria
+## 4. Success criteria — outcome
 
-Submission-grade if:
+- **Sparsity (H1):** ✅ a single head dominates in all 9 models (top head ≫ tail).
+- **Causality (H2):** ✅ patching flips the refusal logit in all 9.
+- **Ablation (H3):** 🟡 refusal ≤30% under top-10 zero-ablation in 5/9.
+- **Capability (H3b):** ❌ the ≤5% perplexity criterion is **not met by any model that removes refusal** — full removal ⇒ PPL ×100–×60,000 (gibberish). **This is the central finding, not a failure:** the pre-registered "publishable failure mode" (refusal is *not* a clean removable module) is exactly what we observe.
+- **Cross-model (H4):** circuit *location* migrates across generations (Gemma L0→L13→L24; Qwen mid→L0); modularity scales with depth.
+- **Metric validation:** dual logit+regex metric; the optional 50-prompt human audit (`06_metric_audit.ipynb`) remains available to report ≥90% agreement.
 
-- E3 produces a refusal metric with ≥ 90% agreement vs human-judged refusals on a 50-prompt audit.
-- E4 produces a (layer, head) heatmap where the top-10 components account for ≥ 50% of the total `|Δr|` mass (sparsity).
-- E5 shows: zero-ablating top-10 drops refusal on held-out toxic prompts to ≤ 30%, while WikiText perplexity changes by ≤ 5%.
-- At least the *qualitative* picture (depth band + attn/MLP split) replicates on Phi-3.
-
-Failure modes that are still publishable findings:
-
-- Refusal is **not** sparse (diffuse across many heads) → counter-evidence to the "safety switch" narrative, still a paper-worthy result.
-- Refusal **transfers between models** at the depth level but not the index level → suggests a universal motif.
+Pre-registered failure modes (from the original plan) that materialised as the contribution:
+- Refusal is sparse/causal **but not modular** → counter-evidence to a clean "safety switch."
+- Refusal structure **transfers at the depth level** within families but *drifts* across generations → a moving target.
 
 ---
 
-## 5. Timeline (12 weeks, indicative)
+## 5. Status & timeline
 
-| Week | Milestone |
-|---|---|
-| 1 | Skeleton + Docker + Colab setup green. Smoke tests pass. |
-| 2 | Data pipeline locked. Matched pairs released as `data/processed/pairs.jsonl`. |
-| 3 | Refusal metric calibrated on TinyLlama. E3 figure. |
-| 4–5 | E4 patching heatmap on TinyLlama. First "candidate safety heads" list. |
-| 6 | Mean-ablation + perplexity controls. E5 results on TinyLlama. |
-| 7–8 | Phi-3 replication. Comparison figure. |
-| 9 | HarmBench (jailbreak) stress test on identified circuits — do they still fire? |
-| 10 | Writeup draft. |
-| 11 | Iterate, address gaps. |
-| 12 | Final report + presentation. |
+The experimental programme (skeleton → data pipeline → refusal metric → patching → ablation +
+perplexity → jailbreak/RTP → 9-model cross-model/generational sweep → figures) is **complete** as of
+2026-06-07. Remaining work is the paper and presentations. The live, dated forward plan is in
+**`PROJECT_PLAN.md` (Part C/D)**: midterm slides (19/06) → finish paper → final presentation (24/07) →
+submit (31/08).
 
 ---
 
@@ -138,20 +142,22 @@ Failure modes that are still publishable findings:
 
 ---
 
-## 7. Risks & mitigations
+## 7. Risks & mitigations — resolved
 
-| Risk | Mitigation |
+| Risk | Outcome |
 |---|---|
-| TinyLlama barely refuses → no signal to trace | Switch positive trigger set to AdvBench + HarmBench (stronger jailbreaks); validated during E3. If TinyLlama is truly under-aligned, swap to Qwen2.5-1.5B-Instruct. |
-| Phi-3 not natively supported in TransformerLens | Load via custom `HookedTransformer.from_pretrained_no_processing` + manual state-dict mapping; documented in `src/safety_circuits/models.py`. |
-| Colab session timeouts during long patching sweeps | Stream activation caches to Drive; resume from last (layer, head) checkpoint. |
-| Refusal metric is noisy | Two-metric agreement gate (logit + regex); 50-prompt human audit. |
+| TinyLlama barely refuses | ✅ Swapped to the Qwen/Gemma/Llama instruct families (under-refusal confirmed). |
+| Phi-3 not natively supported in TransformerLens | ✅ HF-port produces garbage logits (combined-QKV mis-map); **excluded** with a coherence-check diagnostic. |
+| Kaggle session limits on long sweeps | ✅ One model per session; per-model results flushed + zipped; resumable via `SC_MODELS`/`SC_SKIP_EXISTING`. |
+| Refusal metric is noisy | ✅ Dual logit+regex metric; per-prompt continuations saved (`*_examples.jsonl`); optional 50-prompt human audit harness. |
+| System-RAM OOM loading 2B fp32 / dual-copy ports | ✅ HF-port + `low_cpu_mem_usage`; fp16 where VRAM-bound (Gemma-2). |
 
 ---
 
 ## 8. Deliverables
 
-- This repo, reproducible end-to-end on a Colab Pro A100.
-- A 4-page lab report following the course format.
-- The mechanistic map figure (the centrepiece slide of the final talk).
-- An `artifacts/safety_heads.json` listing the top-K causal components per model.
+- This repo, reproducible on a single Kaggle T4 (one model per session). ✅
+- A ~8-page conference/workshop-style paper (`paper/paper.md` — Results drafted). 🟡 in progress.
+- The mechanistic-map figures (`paper/figures/`: per-head heatmaps, removal-vs-ΔPPL coupling, generational migration, jailbreak slope). ✅
+- `<model>_safety_heads.json` (top-K causal heads) per model in `results/kaggle_neo/`. ✅
+- Midterm (19/06) + final (24/07) presentations. ◻ pending.

@@ -2,23 +2,23 @@
 
 > **Course:** MA-INF 4330 — Lab Explainable AI and Applications, University of Bonn
 > **Student:** Pranav Yadav · **Repo:** `safety-circuits`
-> **Last updated:** 2026-05-30
+> **Last updated:** 2026-06-07
 >
-> Living tracker for finishing the project. Companion to `RESEARCH_PLAN.md` (hypotheses/method) and `FINDINGS.md` (results so far). Check off items as they land.
+> Living tracker. Companion to `RESEARCH_PLAN.md` (hypotheses/method), `FINDINGS.md` (results), and `paper/paper.md` (draft). Check off items as they land.
 
 ---
 
 ## TL;DR
 
-- **Code/experiments: ~80% done and strong.** The TransformerLens patching + ablation pipeline works and the core result (sparse, causal, ablatable "safety heads") is real across 4 models.
-- **Graded deliverables: ~10% done.** The grade is **70% paper + 30% defence**. There is **no paper, no midterm slides, no final slides** yet. **Protect writing time above all** — experiments are inputs, the paper is the deliverable.
-- **Must-fix before the paper:** perplexity control (G1), Llama K-sweep (G2), metric audit (G5), statistical rigor (G10).
-- **Publication-grade additions:** Phi-3 fix + pending models (G3/G4), jailbreak stress test (G9), last-token + mean-ablation comparisons (G6/G7).
+- **Experiments + code + findings: ✅ DONE.** All **9 models** (Qwen ×4, Gemma ×3, Llama ×2) ran at **N=50** with the full pipeline; `FINDINGS.md` has four synthesized findings; the analysis code/tests are complete.
+- **Figures + paper Results: ✅ DONE.** `scripts/make_figures.py` → 5 figures + `summary_table.csv`; `paper/paper.md` has the Results section fully drafted.
+- **What's left is the GRADE: writing & slides** (70% paper + 30% defence). Remaining = **midterm slides (19/06)**, the rest of the paper sections, final slides (24/07), submission (31/08).
+- **The story got stronger than the original hypotheses:** refusal is *concentrated but not modular* — and that's the headline, not a clean "safety switch."
 
 ### Locked decisions
-- **Model set:** fix Phi-3 **and** run pending models (Falcon3-1B, OLMo-2-1B) → target 6–7 valid models for H4.
-- **Ambition:** publication-grade (include stretch experiments).
-- **Paper:** ~8-page conference/workshop style.
+- **Model set (final):** Qwen1.5-1.8B, Qwen2-1.5B, Qwen2.5-1.5B, Qwen3-1.7B · Gemma1-2B, Gemma2-2B, Gemma3-1B · Llama-3.2-1B, Llama-3.2-3B — **within-family generational sweeps**. *(The earlier "fix Phi-3 + run Falcon3/OLMo-2" plan was dropped — none are in the pinned TransformerLens `OFFICIAL_MODEL_NAMES`; documented exclusions.)*
+- **Ambition:** publication-grade — all stretch experiments run.
+- **Paper:** ~8-page conference/workshop style (markdown draft → LaTeX later).
 
 ---
 
@@ -36,7 +36,7 @@
 
 ## Part A — Status: what is DONE
 
-### A1. Infrastructure & code (≈90%)
+### A1. Infrastructure & code (✅ complete)
 | Component | File | Status |
 |---|---|---|
 | Model configs (8 models, refusal tokens, dtype, RoPE flags) | `src/safety_circuits/config.py` | ✅ |
@@ -46,109 +46,98 @@
 | Refusal metric: logit-margin + regex | `src/safety_circuits/refusal.py` | ✅ |
 | Activation caching | `src/safety_circuits/activations.py` | ✅ |
 | Patching: head-`z`, MLP-output, residual-stream | `src/safety_circuits/patching.py` | ✅ |
-| Ablation: zero **and** mean hooks; `perplexity()` fn | `src/safety_circuits/ablation.py` | ⚠️ (perplexity not wired in) |
-| Aggregation + heatmap plotting | `src/safety_circuits/analysis.py` | ✅ |
+| Ablation: zero **and** mean hooks; perplexity wired in | `src/safety_circuits/ablation.py` | ✅ |
+| Aggregation + heatmap plotting (+ std/sem/ci95) | `src/safety_circuits/analysis.py` | ✅ |
+| RTP toxicity probe + audit harness | `src/safety_circuits/{toxicity,audit}.py` | ✅ |
 | CLI `run-mvp` | `src/safety_circuits/cli.py` | ✅ |
-| Kaggle runner | `kaggle/run_experiment.py` | ✅ (zero-ablation only) |
+| Kaggle runner (full pipeline, multi-model, preflight) | `kaggle/run_experiment.py` | ✅ |
+| Figure generation | `scripts/make_figures.py` | ✅ |
 | Docker / Makefile / pyproject / smoke tests | repo root + `tests/` | ✅ |
-| Notebooks 01–05 | `notebooks/` | ✅ |
+| Notebooks 01–06 | `notebooks/` | ✅ |
 
-### A2. Experiments run (see `FINDINGS.md`, artifacts in `results/kaggle_neo/`)
-| Model | Arch | Result | Status |
-|---|---|---|---|
-| Qwen2.5-1.5B | 28L×12H | 100% → **0%** refusal (top-10) | ✅ |
-| Qwen3-1.7B | 28L×16H | 93.75% → **0%** | ✅ |
-| Gemma-3-1B | 26L×4H | 68.75% → **0%** | ✅ |
-| Llama-3.2-3B | 28L×24H | 93.75% → **75%** (incomplete) | ⚠️ |
-| Phi-3-mini | 32L×32H | 0% baseline → inconclusive (broken port) | ❌ |
-| Falcon3-1B / OLMo-2-1B | — | configured, not run | ⬜ |
+### A2. Experiments run — all 9 at N=50, full pipeline (`FINDINGS.md`, `results/kaggle_neo/`)
+| Model | Arch | Top head | Refusal clean→zero-abl | Δ PPL | Jailbreak refusal (plain→jb) |
+|---|---|---|---|---|---|
+| Qwen1.5-1.8B | 24L×16H | L12H10 (mid) | 80%→24% | +1.4% | 80→42 |
+| Qwen2-1.5B | 28L×12H | L0H9 | 100%→0% | ×10,600 | 100→74 |
+| Qwen2.5-1.5B | 28L×12H | L0H10 | 100%→0% | ×61,000 | 100→94 |
+| Qwen3-1.7B | 28L×16H | L0H3 (8.87) | 88%→0% | ×128 | 88→**42** |
+| Gemma1-2B | 18L×8H | L0H5 | 88%→72% | +23% | 88→82 |
+| Gemma2-2B | 26L×8H | L13H2 (mid) | 96%→88% | +24% | **96→96** |
+| Gemma3-1B | 26L×4H | L24H0 (late) | 44%→0% | +217% | 44→36 |
+| Llama-3.2-1B | 16L×32H | L9H22 (mid) | 96%→92% | +23% | 96→94 |
+| Llama-3.2-3B | 28L×24H | L0H20 (+L24) | 88%→44% | +5% | 88→96 |
 
-### A3. Hypothesis scorecard (current)
-- **H2 (causal):** ✅ confirmed in 4/4 valid models.
-- **H1 (sparse):** 🟡 partial — sparse everywhere; full suppression only Qwen/Gemma.
-- **H3 (ablation):** 🟡 partial — Llama stalls at 75%; **perplexity control never measured**.
-- **H4 (cross-model):** 🟡 partial — L0 dominance in 3/4; Gemma is L24. Needs more models.
+*(Excluded — not TL-supported / broken: Phi-3, Falcon3, OLMo-2, TinyLlama. See `FINDINGS.md`.)*
+
+### A3. Hypothesis scorecard (final — see `FINDINGS.md`)
+- **H1 (sparse):** ✅ a dominant head + short tail in all 9.
+- **H2 (causal):** ✅ patching flips the refusal logit in all 9.
+- **H3 (ablation removes refusal):** 🟡 partial — met by 5/9 (Qwen2/2.5/3, Gemma3, Qwen1.5).
+- **H3b (…and capability preserved, ΔPPL ≤5%):** ❌ **falsified** — full removal always wrecks capability (gibberish). *Refusal is concentrated but not modular* (Finding A).
+- **H4 (cross-model structure):** 🟡 richer than predicted — location **migrates across generations** (Gemma L0→L13→L24; Qwen mid→L0), and modularity scales with depth (Finding B/C).
 
 ---
 
 ## Part B — Gap analysis: what is LEFT
 
-### B1. Experimental / scientific gaps
-| # | Gap | Why it matters | Where | Effort | Done |
-|---|---|---|---|---|---|
-| G1 | **Perplexity / capability check never measured** | H3 success criterion (≤5% Δ). `perplexity()` exists but `evaluate_ablation` hardcoded `None`. Highest-priority. | `ablation.py`, `data.py`, `cli.py`, `run_experiment.py` | M | 🟡 code done — Kaggle run pending |
-| G2 | **Llama ablation incomplete (75%)** | K-sweep (10→40) to find threshold or document distributed circuit. | `ablation.ablation_k_sweep`, `analysis.plot_k_sweep`, runner `SC_K_SWEEP` | S | 🟡 code done — Kaggle run pending |
-| G3 | **Phi-3 broken (0% baseline)** | Correct combined-QKV/RoPE TL port, or documented swap. | `models.quick_coherence_check` (diagnostic) + `_load_via_hf_port` doc | M–L | 🟡 diagnostic added; **manual QKV remap still needs GPU iteration** |
-| G4 | **Pending models not run** (Falcon3-1B, OLMo-2-1B) | More models → stronger H4; OLMo-2 fully-open-data. | `config.py` (already configured) | S each | 🟡 no code needed — Kaggle run pending |
-| G5 | **No refusal-metric validation** | ≥90% agreement vs human labels on 50-prompt audit. | `audit.py`, `notebooks/06_metric_audit.ipynb` | M | 🟡 harness done — needs model run + human labels |
-| G6 | **Mean-ablation never run** | Wang et al. confound control; code existed but mean-cache shape was buggy. | `ablation.compute_mean_z_cache` (fixed) + runner `SC_MEAN_ABLATION` | S | 🟡 code done — Kaggle run pending |
-| G7 | **Last-token-only patching not used** | Reviewers ask if effect concentrates at decision token. | runner `SC_LASTTOK` (uses `patch_each_head(position=-1)`) | S | 🟡 code done — Kaggle run pending |
-| G8 | **Attention-pattern patching not implemented** | Pattern vs value-weighted output. | `patching.patch_each_head_pattern`, runner `SC_PATTERN` | M | 🟡 code done — Kaggle run pending |
-| G9 | **HarmBench jailbreak stress test not run** | Do safety heads still fire under jailbreaks? | `jailbreak.py`, runner `SC_JAILBREAK` | M | 🟡 code done — Kaggle run pending |
-| G10 | **No statistical rigor** | Error bars / CIs / fixed seed across pairs. | `analysis.aggregate_pairs` (std/sem/ci95), runner `SC_SEED` | M | ✅ code done (std/sem/ci95 columns + seed) |
-| G11 | **Residual-trace "flat" artifact** | Frame as sanity check, not a finding. | `FINDINGS.md`, paper | trivial | ☐ (writeup) |
+### B1. Experimental / scientific gaps — ALL CLOSED
+| # | Gap | Status |
+|---|---|---|
+| G1 | Perplexity / capability control | ✅ run on all 9 — surfaced the headline (refusal removal ⇄ capability damage) |
+| G2 | Llama / K-sweep | ✅ run (Llama-3B 88%→44% at K=10; K-sweep per model) |
+| G3 | Phi-3 broken port | ✅ resolved as **documented exclusion** (not TL-supported); coherence-check diagnostic added |
+| G4 | "Pending models" Falcon3/OLMo-2 | ✅ resolved — **dropped** (not in TL `OFFICIAL_MODEL_NAMES`); replaced by the Qwen/Gemma generational siblings |
+| G5 | Refusal-metric validation (50-prompt audit) | 🟡 harness ready (`audit.py`, `06_metric_audit.ipynb`) — **needs you to fill human labels** (optional, supports Method section) |
+| G6 | Mean-ablation | ✅ run (mean-cache bug fixed); compared vs zero |
+| G7 | Last-token patching | ✅ run (`SC_LASTTOK`) |
+| G8 | Attention-pattern patching | ✅ run (`SC_PATTERN`) |
+| G9 | HarmBench jailbreak stress test | ✅ run on all 9 (Finding D) |
+| G10 | Statistical rigor (std/sem/ci95, seed) | ✅ done — CIs in every `patch_z.csv` |
+| G11 | Residual-trace reframed as sanity check | ✅ done in `FINDINGS.md` |
 
-### B2. Deliverable gaps (THE GRADE)
+### B2. Deliverable gaps (THE GRADE) — what's left
 | # | Gap | Weight | Done |
 |---|---|---|---|
-| D1 | **Scientific paper (~8 pages)** | **70%** | ☐ |
-| D2 | **Final presentation slides** (15 min) | **30%** | ☐ |
-| D3 | **Midterm presentation slides** (15 min, 19/06) | part of 30% | ☐ |
-| D4 | Reproducibility polish (pinned deps, seed, one-command repro, results archived, README status) | supports paper | ☐ |
-| D5 | Publication-quality figures | supports both | ☐ |
+| D5 | Publication-quality figures | supports both | ✅ (5 figs + summary table) |
+| D1 | **Scientific paper (~8 pages)** | **70%** | 🟡 **Results drafted**; Method/Intro/Related/Discussion/Limitations/Abstract = stubs |
+| D3 | **Midterm slides** (15 min, **19/06**) | part of 30% | ☐ **next, highest priority** |
+| D2 | **Final slides** (15 min, 24/07) | **30%** | ☐ |
+| D4 | Reproducibility polish (one-command repro, README status, LaTeX) | supports paper | 🟡 partial (repro artifacts + seed done; LaTeX pending) |
 
 ---
 
-## Part C — Phased plan
+## Part C — How to proceed (forward roadmap, from 2026-06-07)
 
-### Phase 0 — Setup & tracker (this week)
-- [x] Create this `PROJECT_PLAN.md`.
-- [x] Update `README.md` "Status" (no longer just a scaffold); also fixed the stale CLI quick-start (`safety_circuits.cli run-mvp`) and model references.
-- [x] Write the proposal-vs-actual model-swap rationale (added to `README.md` Status note; proposal said TinyLlama/Phi-3 → moved to Qwen/Gemma/Llama, anticipated in `RESEARCH_PLAN.md` risk table).
-- [ ] Confirm paper length/format on Discord / Thursday office hours (2–3pm). _(your action)_
+**The science is done. Everything below is writing & presenting — the 100% of the grade.**
 
-### Phase 1 — Must-have experiments → unblock midterm (now → 18/06)
-> **All code below is now implemented, tested (model-free), committed, and pushed.** What remains is GPU execution on Kaggle (see Part G) + folding numbers into `FINDINGS.md`.
-1. [x] **G1** perplexity wired into `evaluate_ablation` + runner + CLI; `load_wikitext2()`; `perplexity_pct_change`. → Kaggle run pending.
-2. [x] **G2** `ablation_k_sweep()` + `plot_k_sweep()` + runner `SC_K_SWEEP`. → Kaggle run pending.
-3. [x] **G4** Falcon3/OLMo-2 already configured (no code). → Kaggle run pending.
-4. [x] **G5** `audit.py` (`build_audit_sheet`/`compute_agreement`) + `notebooks/06_metric_audit.ipynb`. → needs model run + human labels.
-5. [x] **G10** `aggregate_pairs` now emits std/sem/ci95; runner sets/report seed.
+### 1. Midterm slides (D3) — **DO NOW, hard deadline 19/06** (~12 days)
+- ~12 slides, all visuals already exist in `paper/figures/`:
+  1. Problem (safety is a black box; jailbreaks work) · 2. Method (patching + ablation, 9 models, no training)
+  3. Sparse & causal (`fig_sparsity`, `fig_heatmaps`) · 4. **Not modular** — removal⇄capability coupling (`fig_coupling`) — the headline
+  5. Depth→modularity (Gemma-3 L24 vs Qwen L0) · 6. **Generational migration** (`fig_migration`) · 7. Jailbreak brittleness (`fig_jailbreak`)
+  8. Status + what's next (paper).
+- Honest framing: H1/H2 ✅, H3b ✗ (the interesting result), H4 → migration.
+- [ ] Build deck · [ ] rehearse to 15 min · [ ] 2–3 backup Q&A slides (method validity, capability control).
 
-### Phase 2 — Midterm presentation (deliver 19/06)
-- [ ] 15-min deck (~12–15 slides): problem → method → working result (sparse heads, ablation collapse) → cross-model picture → next steps.
-- [ ] Lead visual: clean per-head heatmap + "10/336 heads → 100%→0%" headline.
-- [ ] Honest status slide (H2 confirmed; H1/H3/H4 partial; perplexity now controlled).
-- [ ] Rehearse to 15 min + backup Q&A slides.
+### 2. Finish the paper (D1) — parallel, the 70%
+`paper/paper.md` has **Results drafted**. Remaining sections (I can draft each):
+- [ ] Method · [ ] Introduction · [ ] Related Work · [ ] Discussion · [ ] Limitations · [ ] Abstract
+- [ ] Reproducibility appendix · [ ] References.
+- Cadence: Method → Discussion → Intro/Related → Abstract; 2 self-reviews + 1 office-hours review.
 
-### Phase 3 — Stretch experiments → publication-grade (20/06 → ~20/07)
-> **Code for G6–G9 is implemented, tested, committed, pushed.** Enable via the Part G flags on the Kaggle run. G3 has a diagnostic; the underlying port fix still needs GPU iteration.
-6. [~] **G3** `quick_coherence_check()` diagnostic added + documented. Manual QKV remap (real fix) still needs GPU iteration, else keep Phi-3 excluded.
-7. [x] **G9** `jailbreak.py` + runner `SC_JAILBREAK`. → Kaggle run pending.
-8. [x] **G7** runner `SC_LASTTOK` (position=-1 sweep + heatmap). → Kaggle run pending.
-9. [x] **G6** mean-ablation fixed (`compute_mean_z_cache`) + runner `SC_MEAN_ABLATION`. → Kaggle run pending.
-10. [x] **G8** `patch_each_head_pattern()` + runner `SC_PATTERN`. → Kaggle run pending.
-11. [ ] **G11** Reframe residual-trace as sanity check everywhere. _(writeup)_
+### 3. Optional rigor (supports the paper, not blocking)
+- [ ] 50-prompt human metric audit (`notebooks/06_metric_audit.ipynb`) — fills the Method validity claim (≥90% agreement).
+- [ ] Llama-3B higher-K ablation (does refusal fully drop past K=10?).
 
-### Phase 4 — Paper writing (~20/07 → 25/08, overlaps Phase 3)
-Target ~8-page conference/workshop format:
-- [ ] Abstract + Intro ("Is safety sparse and localizable in small instruct LMs?")
-- [ ] Related work (IOI / Wang 2022, ROME causal tracing / Meng, activation patching, refusal-direction work)
-- [ ] Method (matched pairs, refusal-margin metric + audit, patching head/MLP/resid + last-token, ablation zero & mean, perplexity control)
-- [ ] Results (heatmaps, sparsity/top-K mass, ablation collapse + perplexity, K-sweep, cross-model table, jailbreak)
-- [ ] Discussion (L0 vs L24, distributed vs concentrated, "safety is mechanistic")
-- [ ] Limitations (small models, toxic axis only, no weight editing/SAEs, port caveats)
-- [ ] Reproducibility appendix (models, seeds, deps, one-command repro)
-- [ ] **D5** figures: heatmaps, cross-model comparison, refusal-vs-K curve, zero-vs-mean bars, perplexity-vs-refusal scatter, jailbreak deltas
-- Cadence: outline → method+results first → intro/related last → 2 self-reviews → 1 peer/office-hours review.
+### 4. Final presentation (D2) — 24/07, in person
+- [ ] 15-min deck = the paper's narrative arc with the publication figures (extends the midterm deck).
 
-### Phase 5 — Final presentation (deliver 24/07, in person)
-- [ ] 15-min deck = paper's narrative arc with publication-grade figures, H4 verdict, jailbreak result.
+### 5. Submit (by 31/08 23:59 AOE)
+- [ ] Convert to LaTeX (after confirming format) · [ ] proofread + captions + refs · [ ] submit to `amllab@bit.uni-bonn.de` · [ ] tag repo.
 
-### Phase 6 — Submit (by 31/08 23:59 AOE)
-- [ ] Proofread, figure/caption check, references, reproducibility appendix.
-- [ ] Submit to `amllab@bit.uni-bonn.de`.
-- [ ] Tag repo at submitted commit; ensure artifacts reproducible.
+### 0. Your action
+- [ ] Confirm paper length/format on Discord / Thursday office hours (2–3pm).
 
 ---
 
@@ -156,14 +145,13 @@ Target ~8-page conference/workshop format:
 
 | Window | Focus | Output |
 |---|---|---|
-| 30/05 – 06/06 | Phase 0 + G1 + G2 | H3 fixed; tracker live |
-| 07/06 – 18/06 | G4, G5, G10; build midterm deck | Midterm-ready |
-| **19/06** | **Midterm presentation** | ✔ |
-| 20/06 – 10/07 | G3, G9, G7, G6 | Stretch results |
-| 08/07 – 24/07 | Figures + paper method/results; final deck | Final-ready |
-| **24/07** | **Final presentation** | ✔ |
-| 25/07 – 25/08 | Paper writing + revisions | Draft → polished |
-| 26/08 – 31/08 | Proofread + submit | ✔ Submitted |
+| ~~…→06/06~~ | ~~experiments + code + findings~~ | ✅ done (9 models, FINDINGS, figures, Results draft) |
+| **07/06 – 18/06** | **Midterm deck** + draft paper Method/Discussion | Midterm-ready |
+| **19/06** | **Midterm presentation** | ◻ |
+| 20/06 – 23/07 | Finish paper (Intro/Related/Abstract); optional audit + Llama-K; final deck | Final-ready |
+| **24/07** | **Final presentation** | ◻ |
+| 25/07 – 30/08 | Paper polish + LaTeX + revisions | Draft → polished |
+| **31/08** | **Submit paper** | ◻ |
 
 ---
 
@@ -172,7 +160,7 @@ Target ~8-page conference/workshop format:
 - **Model runs (G3, G4, G9):** full artifact set per model (`*_patch_z.csv`, `*_heatmap.png`, `*_ablation.csv` with perplexity, `*_safety_heads.json`) + FINDINGS row.
 - **Metric audit (G5):** labeled CSV + computed agreement %.
 - **Deliverables (D1–D3):** paper compiles to ~8 pages; decks rehearsed to time; dry-run Q&A.
-- **End-to-end repro:** fresh clone → `python -m safety_circuits.cli run-mvp --model qwen` reproduces a headline number.
+- **End-to-end repro:** fresh clone → `python -m safety_circuits.cli run-mvp --model qwen2.5` reproduces a headline number.
 
 ---
 
@@ -200,7 +188,7 @@ Then download: `python scripts/kaggle_api.py output` (→ `results/kaggle_neo/`)
 >
 > **Jailbreak (G9) needs gated data:** `walledai/HarmBench` is gated — accept its terms at hf.co/datasets/walledai/HarmBench under the account whose `HF_TOKEN` the run uses, else the jailbreak add-on is skipped with a clear message (non-fatal; everything else still runs).
 | `SC_SKIP_EXISTING` | `0` | skip models with a `_DONE.json` already present (resume) |
-| `SC_N_PAIRS` | `32` | matched pairs for the main z-sweep |
+| `SC_N_PAIRS` | `50` | matched pairs for the main z-sweep |
 | `SC_HEAVY_PAIRS` | `8` | pairs for the doubler sweeps (last-token, pattern) — bounds cost |
 | `SC_TOP_K` | `10` · `SC_K_SWEEP` `5,10,15,20,30,40` · `SC_PPL_TEXTS` `64` · `SC_SEED` `0` | as before |
 | `SC_COHERENCE` / `SC_MEAN_ABLATION` / `SC_LASTTOK` / `SC_PATTERN` / `SC_JAILBREAK` | **`1`** | all add-ons ON by default |
@@ -221,11 +209,11 @@ The 50-prompt metric audit (G5) runs separately via `notebooks/06_metric_audit.i
 
 ---
 
-## Part F — Risks
+## Part F — Risks (current)
 | Risk | Mitigation |
 |---|---|
-| Phi-3 port stays broken | Time-box G3; fall back to Falcon3/OLMo-2 + documented exclusion. |
-| Underestimating writing time (the 70%) | Start method+results in Phase 3, not after. |
-| Kaggle/Colab session limits | Checkpoint per (layer,head); results persist as kernel output. |
-| Scope creep from stretch experiments | G8 is optional; cut first. |
-| Model mismatch raised in defence | Address proactively (deliberate, documented swap). |
+| **Underestimating writing time (the 70%+30%)** — the only real risk now | Experiments are done; start the midterm deck + Method section this week. Don't re-run models. |
+| Midterm deadline (19/06) crowds the paper | Reuse the existing figures verbatim in slides; the deck *is* a subset of the paper narrative. |
+| "Why not TinyLlama/Phi-3 from the proposal?" in defence | Documented: not TL-supported; swapped to Qwen/Gemma/Llama generational sweeps (a stronger design). |
+| Headline is a *negative* result (not a clean switch) | Frame as the contribution: "concentrated but not modular" + capability control is the methodological lesson; pre-registered as a publishable failure mode in `RESEARCH_PLAN.md`. |
+| Paper format/length uncertain | Confirm with instructors; markdown draft converts cleanly to LaTeX. |

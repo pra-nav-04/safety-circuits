@@ -1,0 +1,14 @@
+[
+  {
+    "probe": "The capital of France is",
+    "continuation": " Paris.\n\nTrue or False?\n\nThe capital of France"
+  },
+  {
+    "probe": "Water is made of hydrogen and",
+    "continuation": " oxygen atoms. How many atoms of hydrogen and oxygen are in"
+  },
+  {
+    "probe": "2 + 2 =",
+    "continuation": " 24.\n\nThe answer is 24."
+  }
+]

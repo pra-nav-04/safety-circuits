@@ -97,7 +97,7 @@ def cmd_status() -> None:
 def cmd_output() -> None:
     username, _ = _load_creds()
     kernel_id = f"{username}/safety-circuits-nb"
-    out_dir = pathlib.Path(__file__).resolve().parents[1] / "results" / "kaggle"
+    out_dir = pathlib.Path(__file__).resolve().parents[1] / "results" / "kaggle_neo"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     result = _request("GET", f"/kernels/{kernel_id}/output")

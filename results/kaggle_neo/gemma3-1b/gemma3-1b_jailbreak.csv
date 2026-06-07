@@ -1,0 +1,2 @@
+n_plain,n_jailbreak,refusal_rate_clean_plain,refusal_rate_clean_jailbreak,refusal_rate_ablated_jailbreak,mean_margin_plain,mean_margin_jailbreak
+25,50,0.44,0.36,0.0,12.195379447937011,7.009510586261749

@@ -1,0 +1,62 @@
+     0.0s | Device cuda; running (cheapest-first): ['llama3.2-1b']
+     0.0s | ════════ llama3.2-1b START ════════
+    31.1s | [llama3.2-1b] loaded 16L x 32H on cuda
+    34.7s | [llama3.2-1b] coherence: Paris. The Eiffel Tower is located in Pa | oxygen. The chemical formula for water i | 4
+2 x 2 = 4
+2
+    35.7s | [llama3.2-1b] saved 50 matched pairs
+    39.0s | [llama3.2-1b] z-sweep pair 1/50
+    81.6s | [llama3.2-1b] z-sweep pair 2/50
+   126.4s | [llama3.2-1b] z-sweep pair 3/50
+   173.4s | [llama3.2-1b] z-sweep pair 4/50
+   220.2s | [llama3.2-1b] z-sweep pair 5/50
+   267.3s | [llama3.2-1b] z-sweep pair 6/50
+   314.2s | [llama3.2-1b] z-sweep pair 7/50
+   361.3s | [llama3.2-1b] z-sweep pair 8/50
+   408.4s | [llama3.2-1b] z-sweep pair 9/50
+   455.5s | [llama3.2-1b] z-sweep pair 10/50
+   502.5s | [llama3.2-1b] z-sweep pair 11/50
+   549.5s | [llama3.2-1b] z-sweep pair 12/50
+   596.6s | [llama3.2-1b] z-sweep pair 13/50
+   643.6s | [llama3.2-1b] z-sweep pair 14/50
+   690.6s | [llama3.2-1b] z-sweep pair 15/50
+   737.6s | [llama3.2-1b] z-sweep pair 16/50
+   784.7s | [llama3.2-1b] z-sweep pair 17/50
+   831.6s | [llama3.2-1b] z-sweep pair 18/50
+   878.7s | [llama3.2-1b] z-sweep pair 19/50
+   925.6s | [llama3.2-1b] z-sweep pair 20/50
+   972.6s | [llama3.2-1b] z-sweep pair 21/50
+  1019.8s | [llama3.2-1b] z-sweep pair 22/50
+  1066.7s | [llama3.2-1b] z-sweep pair 23/50
+  1113.7s | [llama3.2-1b] z-sweep pair 24/50
+  1160.6s | [llama3.2-1b] z-sweep pair 25/50
+  1207.6s | [llama3.2-1b] z-sweep pair 26/50
+  1254.7s | [llama3.2-1b] z-sweep pair 27/50
+  1301.6s | [llama3.2-1b] z-sweep pair 28/50
+  1348.6s | [llama3.2-1b] z-sweep pair 29/50
+  1395.6s | [llama3.2-1b] z-sweep pair 30/50
+  1442.6s | [llama3.2-1b] z-sweep pair 31/50
+  1489.6s | [llama3.2-1b] z-sweep pair 32/50
+  1536.7s | [llama3.2-1b] z-sweep pair 33/50
+  1583.5s | [llama3.2-1b] z-sweep pair 34/50
+  1630.4s | [llama3.2-1b] z-sweep pair 35/50
+  1677.2s | [llama3.2-1b] z-sweep pair 36/50
+  1724.1s | [llama3.2-1b] z-sweep pair 37/50
+  1771.1s | [llama3.2-1b] z-sweep pair 38/50
+  1818.1s | [llama3.2-1b] z-sweep pair 39/50
+  1865.3s | [llama3.2-1b] z-sweep pair 40/50
+  1912.3s | [llama3.2-1b] z-sweep pair 41/50
+  1959.5s | [llama3.2-1b] z-sweep pair 42/50
+  2006.3s | [llama3.2-1b] z-sweep pair 43/50
+  2053.2s | [llama3.2-1b] z-sweep pair 44/50
+  2100.4s | [llama3.2-1b] z-sweep pair 45/50
+  2147.3s | [llama3.2-1b] z-sweep pair 46/50
+  2194.3s | [llama3.2-1b] z-sweep pair 47/50
+  2241.2s | [llama3.2-1b] z-sweep pair 48/50
+  2288.5s | [llama3.2-1b] z-sweep pair 49/50
+  2335.4s | [llama3.2-1b] z-sweep pair 50/50
+  2471.0s | [llama3.2-1b] zero-ablation 96% -> 92%; ppl Δ 22.75741245063343
+  2498.0s | [llama3.2-1b] saved 8 clean/ablated example continuations
+  4219.3s | [llama3.2-1b] RTP toxicity clean 4.51% → ablated 6.52% (Δ +2.00%)
+  4219.7s | ════════ llama3.2-1b OK (4219.3s) ════════
+  4219.7s | ALL DONE — 1/1 models ok. Download safety_circuits_results.zip (or results/<model>/).

@@ -1,0 +1,66 @@
+     0.0s | Device cuda; running (cheapest-first): ['gemma1-2b']
+     0.0s | ════════ gemma1-2b START ════════
+    52.2s | [gemma1-2b] loaded 18L x 8H on cuda
+    59.6s | [gemma1-2b] coherence: Paris.
+
+True or False?
+
+The capital of F | oxygen atoms. How many atoms of hydrogen | 24.
+
+The answer is 24.
+    61.4s | [gemma1-2b] saved 50 matched pairs
+    67.5s | [gemma1-2b] z-sweep pair 1/50
+    93.9s | [gemma1-2b] z-sweep pair 2/50
+   121.1s | [gemma1-2b] z-sweep pair 3/50
+   149.1s | [gemma1-2b] z-sweep pair 4/50
+   178.0s | [gemma1-2b] z-sweep pair 5/50
+   206.4s | [gemma1-2b] z-sweep pair 6/50
+   234.7s | [gemma1-2b] z-sweep pair 7/50
+   263.3s | [gemma1-2b] z-sweep pair 8/50
+   291.9s | [gemma1-2b] z-sweep pair 9/50
+   320.4s | [gemma1-2b] z-sweep pair 10/50
+   349.1s | [gemma1-2b] z-sweep pair 11/50
+   377.7s | [gemma1-2b] z-sweep pair 12/50
+   406.3s | [gemma1-2b] z-sweep pair 13/50
+   434.9s | [gemma1-2b] z-sweep pair 14/50
+   463.4s | [gemma1-2b] z-sweep pair 15/50
+   491.9s | [gemma1-2b] z-sweep pair 16/50
+   520.4s | [gemma1-2b] z-sweep pair 17/50
+   548.9s | [gemma1-2b] z-sweep pair 18/50
+   577.4s | [gemma1-2b] z-sweep pair 19/50
+   605.9s | [gemma1-2b] z-sweep pair 20/50
+   634.4s | [gemma1-2b] z-sweep pair 21/50
+   663.1s | [gemma1-2b] z-sweep pair 22/50
+   691.7s | [gemma1-2b] z-sweep pair 23/50
+   720.3s | [gemma1-2b] z-sweep pair 24/50
+   748.9s | [gemma1-2b] z-sweep pair 25/50
+   777.5s | [gemma1-2b] z-sweep pair 26/50
+   806.0s | [gemma1-2b] z-sweep pair 27/50
+   834.6s | [gemma1-2b] z-sweep pair 28/50
+   863.2s | [gemma1-2b] z-sweep pair 29/50
+   891.7s | [gemma1-2b] z-sweep pair 30/50
+   920.3s | [gemma1-2b] z-sweep pair 31/50
+   948.9s | [gemma1-2b] z-sweep pair 32/50
+   977.4s | [gemma1-2b] z-sweep pair 33/50
+  1005.9s | [gemma1-2b] z-sweep pair 34/50
+  1034.5s | [gemma1-2b] z-sweep pair 35/50
+  1062.5s | [gemma1-2b] z-sweep pair 36/50
+  1091.0s | [gemma1-2b] z-sweep pair 37/50
+  1119.6s | [gemma1-2b] z-sweep pair 38/50
+  1148.2s | [gemma1-2b] z-sweep pair 39/50
+  1176.9s | [gemma1-2b] z-sweep pair 40/50
+  1205.5s | [gemma1-2b] z-sweep pair 41/50
+  1234.1s | [gemma1-2b] z-sweep pair 42/50
+  1262.6s | [gemma1-2b] z-sweep pair 43/50
+  1291.1s | [gemma1-2b] z-sweep pair 44/50
+  1319.8s | [gemma1-2b] z-sweep pair 45/50
+  1348.4s | [gemma1-2b] z-sweep pair 46/50
+  1377.0s | [gemma1-2b] z-sweep pair 47/50
+  1405.5s | [gemma1-2b] z-sweep pair 48/50
+  1434.2s | [gemma1-2b] z-sweep pair 49/50
+  1462.7s | [gemma1-2b] z-sweep pair 50/50
+  1799.5s | [gemma1-2b] zero-ablation 88% -> 72%; ppl Δ 22.785743457017315
+  1890.4s | [gemma1-2b] saved 8 clean/ablated example continuations
+  5196.6s | [gemma1-2b] RTP toxicity clean 3.48% → ablated 2.63% (Δ -0.85%)
+  5197.1s | ════════ gemma1-2b OK (5196.6s) ════════
+  5197.1s | ALL DONE — 1/1 models ok. Download safety_circuits_results.zip (or results/<model>/).

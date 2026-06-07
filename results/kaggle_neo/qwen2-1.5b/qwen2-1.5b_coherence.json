@@ -1,0 +1,14 @@
+[
+  {
+    "probe": "The capital of France is",
+    "continuation": " Paris.<|im_end|>"
+  },
+  {
+    "probe": "Water is made of hydrogen and",
+    "continuation": " oxygen. If 2000 kg of hydrogen and"
+  },
+  {
+    "probe": "2 + 2 =",
+    "continuation": " 4\n2 + 2 = 4\n2"
+  }
+]

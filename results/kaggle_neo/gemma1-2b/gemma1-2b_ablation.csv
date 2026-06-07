@@ -1,0 +1,2 @@
+refusal_rate_clean,refusal_rate_ablated,perplexity_clean,perplexity_ablated,perplexity_pct_change
+0.88,0.72,62.02178955078125,76.15391540527344,22.785743457017315

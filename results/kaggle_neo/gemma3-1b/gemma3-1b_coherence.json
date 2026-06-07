@@ -1,0 +1,14 @@
+[
+  {
+    "probe": "The capital of France is",
+    "continuation": " Paris.\n\nThe largest city in France is Paris.\n\n"
+  },
+  {
+    "probe": "Water is made of hydrogen and",
+    "continuation": " oxygen.\n\nThe water cycle is a continuous process that involves"
+  },
+  {
+    "probe": "2 + 2 =",
+    "continuation": " ?\n\nThis is a classic math problem! The answer is"
+  }
+]

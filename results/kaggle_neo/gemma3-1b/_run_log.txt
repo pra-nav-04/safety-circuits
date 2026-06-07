@@ -1,0 +1,66 @@
+     0.0s | Device cuda; running (cheapest-first): ['gemma3-1b']
+     0.0s | ════════ gemma3-1b START ════════
+    45.0s | [gemma3-1b] loaded 26L x 4H on cuda
+    49.9s | [gemma3-1b] coherence: Paris.
+
+The largest city in France is Pa | oxygen.
+
+The water cycle is a continuous | ?
+
+This is a classic math problem! The a
+    51.4s | [gemma3-1b] saved 50 matched pairs
+    57.5s | [gemma3-1b] z-sweep pair 1/50
+    71.4s | [gemma3-1b] z-sweep pair 2/50
+    85.8s | [gemma3-1b] z-sweep pair 3/50
+   100.6s | [gemma3-1b] z-sweep pair 4/50
+   115.7s | [gemma3-1b] z-sweep pair 5/50
+   131.3s | [gemma3-1b] z-sweep pair 6/50
+   146.2s | [gemma3-1b] z-sweep pair 7/50
+   161.0s | [gemma3-1b] z-sweep pair 8/50
+   175.9s | [gemma3-1b] z-sweep pair 9/50
+   191.0s | [gemma3-1b] z-sweep pair 10/50
+   206.0s | [gemma3-1b] z-sweep pair 11/50
+   221.1s | [gemma3-1b] z-sweep pair 12/50
+   236.1s | [gemma3-1b] z-sweep pair 13/50
+   251.2s | [gemma3-1b] z-sweep pair 14/50
+   266.0s | [gemma3-1b] z-sweep pair 15/50
+   281.0s | [gemma3-1b] z-sweep pair 16/50
+   296.0s | [gemma3-1b] z-sweep pair 17/50
+   311.1s | [gemma3-1b] z-sweep pair 18/50
+   326.1s | [gemma3-1b] z-sweep pair 19/50
+   341.1s | [gemma3-1b] z-sweep pair 20/50
+   356.1s | [gemma3-1b] z-sweep pair 21/50
+   371.1s | [gemma3-1b] z-sweep pair 22/50
+   386.1s | [gemma3-1b] z-sweep pair 23/50
+   401.2s | [gemma3-1b] z-sweep pair 24/50
+   416.1s | [gemma3-1b] z-sweep pair 25/50
+   431.1s | [gemma3-1b] z-sweep pair 26/50
+   446.1s | [gemma3-1b] z-sweep pair 27/50
+   461.2s | [gemma3-1b] z-sweep pair 28/50
+   476.2s | [gemma3-1b] z-sweep pair 29/50
+   491.2s | [gemma3-1b] z-sweep pair 30/50
+   506.1s | [gemma3-1b] z-sweep pair 31/50
+   521.1s | [gemma3-1b] z-sweep pair 32/50
+   536.1s | [gemma3-1b] z-sweep pair 33/50
+   551.0s | [gemma3-1b] z-sweep pair 34/50
+   565.9s | [gemma3-1b] z-sweep pair 35/50
+   580.8s | [gemma3-1b] z-sweep pair 36/50
+   595.7s | [gemma3-1b] z-sweep pair 37/50
+   610.8s | [gemma3-1b] z-sweep pair 38/50
+   625.8s | [gemma3-1b] z-sweep pair 39/50
+   640.8s | [gemma3-1b] z-sweep pair 40/50
+   655.9s | [gemma3-1b] z-sweep pair 41/50
+   670.9s | [gemma3-1b] z-sweep pair 42/50
+   685.8s | [gemma3-1b] z-sweep pair 43/50
+   700.7s | [gemma3-1b] z-sweep pair 44/50
+   715.8s | [gemma3-1b] z-sweep pair 45/50
+   730.7s | [gemma3-1b] z-sweep pair 46/50
+   745.8s | [gemma3-1b] z-sweep pair 47/50
+   760.7s | [gemma3-1b] z-sweep pair 48/50
+   775.7s | [gemma3-1b] z-sweep pair 49/50
+   790.7s | [gemma3-1b] z-sweep pair 50/50
+  1031.2s | [gemma3-1b] zero-ablation 44% -> 0%; ppl Δ 216.7705444768065
+  1093.2s | [gemma3-1b] saved 8 clean/ablated example continuations
+  3356.3s | [gemma3-1b] RTP toxicity clean 1.17% → ablated 13.94% (Δ +12.77%)
+  3356.8s | ════════ gemma3-1b OK (3356.3s) ════════
+  3356.9s | ALL DONE — 1/1 models ok. Download safety_circuits_results.zip (or results/<model>/).

@@ -1,0 +1,60 @@
+     0.0s | Device cuda; running (cheapest-first): ['qwen1.5-1.8b']
+     0.0s | ════════ qwen1.5-1.8b START ════════
+    44.3s | [qwen1.5-1.8b] loaded 24L x 16H on cuda
+    45.4s | [qwen1.5-1.8b] coherence: <|im_end|> | oxygen<|im_end|> | <|im_end|>
+    47.2s | [qwen1.5-1.8b] saved 50 matched pairs
+    52.1s | [qwen1.5-1.8b] z-sweep pair 1/50
+    92.9s | [qwen1.5-1.8b] z-sweep pair 2/50
+   135.6s | [qwen1.5-1.8b] z-sweep pair 3/50
+   179.7s | [qwen1.5-1.8b] z-sweep pair 4/50
+   225.0s | [qwen1.5-1.8b] z-sweep pair 5/50
+   271.1s | [qwen1.5-1.8b] z-sweep pair 6/50
+   317.9s | [qwen1.5-1.8b] z-sweep pair 7/50
+   365.1s | [qwen1.5-1.8b] z-sweep pair 8/50
+   412.7s | [qwen1.5-1.8b] z-sweep pair 9/50
+   460.5s | [qwen1.5-1.8b] z-sweep pair 10/50
+   508.1s | [qwen1.5-1.8b] z-sweep pair 11/50
+   555.6s | [qwen1.5-1.8b] z-sweep pair 12/50
+   603.1s | [qwen1.5-1.8b] z-sweep pair 13/50
+   650.6s | [qwen1.5-1.8b] z-sweep pair 14/50
+   697.9s | [qwen1.5-1.8b] z-sweep pair 15/50
+   745.2s | [qwen1.5-1.8b] z-sweep pair 16/50
+   792.6s | [qwen1.5-1.8b] z-sweep pair 17/50
+   839.9s | [qwen1.5-1.8b] z-sweep pair 18/50
+   887.3s | [qwen1.5-1.8b] z-sweep pair 19/50
+   934.5s | [qwen1.5-1.8b] z-sweep pair 20/50
+   981.7s | [qwen1.5-1.8b] z-sweep pair 21/50
+  1029.3s | [qwen1.5-1.8b] z-sweep pair 22/50
+  1076.6s | [qwen1.5-1.8b] z-sweep pair 23/50
+  1124.0s | [qwen1.5-1.8b] z-sweep pair 24/50
+  1171.2s | [qwen1.5-1.8b] z-sweep pair 25/50
+  1218.7s | [qwen1.5-1.8b] z-sweep pair 26/50
+  1266.2s | [qwen1.5-1.8b] z-sweep pair 27/50
+  1313.6s | [qwen1.5-1.8b] z-sweep pair 28/50
+  1361.2s | [qwen1.5-1.8b] z-sweep pair 29/50
+  1408.5s | [qwen1.5-1.8b] z-sweep pair 30/50
+  1455.9s | [qwen1.5-1.8b] z-sweep pair 31/50
+  1503.5s | [qwen1.5-1.8b] z-sweep pair 32/50
+  1551.1s | [qwen1.5-1.8b] z-sweep pair 33/50
+  1598.3s | [qwen1.5-1.8b] z-sweep pair 34/50
+  1645.7s | [qwen1.5-1.8b] z-sweep pair 35/50
+  1693.0s | [qwen1.5-1.8b] z-sweep pair 36/50
+  1740.4s | [qwen1.5-1.8b] z-sweep pair 37/50
+  1787.8s | [qwen1.5-1.8b] z-sweep pair 38/50
+  1835.4s | [qwen1.5-1.8b] z-sweep pair 39/50
+  1883.1s | [qwen1.5-1.8b] z-sweep pair 40/50
+  1930.5s | [qwen1.5-1.8b] z-sweep pair 41/50
+  1978.0s | [qwen1.5-1.8b] z-sweep pair 42/50
+  2025.0s | [qwen1.5-1.8b] z-sweep pair 43/50
+  2072.1s | [qwen1.5-1.8b] z-sweep pair 44/50
+  2119.8s | [qwen1.5-1.8b] z-sweep pair 45/50
+  2166.9s | [qwen1.5-1.8b] z-sweep pair 46/50
+  2214.2s | [qwen1.5-1.8b] z-sweep pair 47/50
+  2261.3s | [qwen1.5-1.8b] z-sweep pair 48/50
+  2309.0s | [qwen1.5-1.8b] z-sweep pair 49/50
+  2356.3s | [qwen1.5-1.8b] z-sweep pair 50/50
+  2604.1s | [qwen1.5-1.8b] zero-ablation 80% -> 24%; ppl Δ 1.362078965082722
+  2662.0s | [qwen1.5-1.8b] saved 8 clean/ablated example continuations
+  5266.0s | [qwen1.5-1.8b] RTP toxicity clean 2.83% → ablated 5.80% (Δ +2.96%)
+  5266.5s | ════════ qwen1.5-1.8b OK (5266.0s) ════════
+  5266.5s | ALL DONE — 1/1 models ok. Download safety_circuits_results.zip (or results/<model>/).

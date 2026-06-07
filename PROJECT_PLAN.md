@@ -53,7 +53,7 @@
 | Docker / Makefile / pyproject / smoke tests | repo root + `tests/` | ✅ |
 | Notebooks 01–05 | `notebooks/` | ✅ |
 
-### A2. Experiments run (see `FINDINGS.md`, artifacts in `results/kaggle/`)
+### A2. Experiments run (see `FINDINGS.md`, artifacts in `results/kaggle_neo/`)
 | Model | Arch | Result | Status |
 |---|---|---|---|
 | Qwen2.5-1.5B | 28L×12H | 100% → **0%** refusal (top-10) | ✅ |
@@ -186,8 +186,8 @@ git-pulls the repo and `runpy`s the orchestrator — so logic updates ship via `
 the browser notebook is set up once and never edited again.
 
 **Run it:** `git push origin main` → open the notebook → "Save & Run All".
-Then download: `python scripts/kaggle_api.py output` (→ `results/kaggle/`), or grab
-`/kaggle/working/safety_circuits_results.zip` and commit it under `results/kaggle/`.
+Then download: `python scripts/kaggle_api.py output` (→ `results/kaggle_neo/`), or grab
+`/kaggle/working/safety_circuits_results.zip` and commit it under `results/kaggle_neo/`.
 
 | Env var | Default | Effect |
 |---|---|---|

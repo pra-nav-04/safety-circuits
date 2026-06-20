@@ -188,7 +188,11 @@ def inject_head_lora(
             adapter = HeadMaskedLoRALinear(
                 base, role=_ROLE_BY_PROJ[proj], heads=head_idx, info=info, rank=rank, alpha=alpha
             )
-            adapter._parent = attn
+            # Store the parent ref via object.__setattr__ so nn.Module does NOT register
+            # `attn` as a submodule of the adapter — that would create a cycle
+            # (attn → adapter → attn) and blow the stack on any module-tree walk
+            # (e.g. hf_model.train()). `_attr` is a str so it's a plain attribute.
+            object.__setattr__(adapter, "_parent", attn)
             adapter._attr = proj
             adapter.lora_A.requires_grad_(True)
             adapter.lora_B.requires_grad_(True)

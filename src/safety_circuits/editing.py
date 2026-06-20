@@ -101,7 +101,10 @@ def train_head_lora(
 
     params = [p for ad in adapters for p in (ad.lora_A, ad.lora_B)]
     opt = torch.optim.AdamW(params, lr=cfg.lr)
-    scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
+    try:  # torch>=2.4 API; fall back for older torch
+        scaler = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
+    except (AttributeError, TypeError):
+        scaler = torch.cuda.amp.GradScaler(enabled=(device.type == "cuda"))
     pad_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else (tokenizer.eos_token_id or 0)
 
     hf_model.train()

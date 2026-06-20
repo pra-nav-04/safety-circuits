@@ -134,3 +134,25 @@ def test_inject_targets_only_safety_layers():
     # only LoRA params are trainable
     trainable = {n for n, p in model.named_parameters() if p.requires_grad}
     assert trainable and all("lora_" in n for n in trainable)
+
+
+def test_inject_does_not_create_module_cycle():
+    # the parent ref must NOT be registered as a submodule, else attn<->adapter cycles
+    # and any module-tree walk (e.g. .train()) recurses to a RecursionError.
+    model = _fake_hf_model()
+    inject_head_lora(model, [SimpleNamespace(layer=0, head=1)], rank=2, alpha=4)
+    model.train()                          # walks the whole module tree — must not recurse
+    model.to("cpu")
+    assert len(list(model.modules())) < 10_000   # finite traversal
+
+
+def test_merge_restores_real_module_parent():
+    # parent is a real nn.Module here (mirrors inject) — exercises object.__setattr__ path
+    model = _fake_hf_model()
+    adapters = inject_head_lora(model, [SimpleNamespace(layer=0, head=1)], rank=2, alpha=4)
+    for ad in adapters:
+        _fill(ad)
+    merge_head_lora(adapters)
+    attn = model.model.layers[0].self_attn
+    assert all(isinstance(getattr(attn, p), nn.Linear)
+               for p in ("q_proj", "k_proj", "v_proj", "o_proj"))

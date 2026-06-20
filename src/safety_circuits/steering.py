@@ -1,0 +1,76 @@
+"""No-train steering-vector baseline (Arditi et al., 2024).
+
+The non-training comparison point on the "scalpel-sharpness" axis: blunt zero-ablation
+(crude) → steering vector (no-train) → head-restricted LoRA (trained). We compute a
+single **refusal direction** as the difference of mean residual-stream activations on
+harmful vs benign prompts, then *project it out* of the residual stream at every layer
+(directional ablation) to suppress refusal — no gradient updates, pure forward hooks,
+entirely inside the existing TransformerLens harness.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import torch
+from tqdm import tqdm
+
+if TYPE_CHECKING:  # TransformerLens is imported lazily so this module (and the unit
+    from .models import LoadedModel  # test of `project_out`) need no TL at import time.
+
+
+def project_out(resid: torch.Tensor, direction: torch.Tensor, coeff: float = 1.0) -> torch.Tensor:
+    """`x − coeff·(x·d̂)d̂` over the last dim. Pure torch — the steering hook's core."""
+    unit = direction / (direction.norm() + 1e-8)
+    unit = unit.to(device=resid.device, dtype=resid.dtype)
+    proj = torch.einsum("...d,d->...", resid, unit)  # [...]
+    return resid - coeff * proj.unsqueeze(-1) * unit
+
+
+@torch.no_grad()
+def compute_refusal_direction(
+    loaded: "LoadedModel",
+    harm_prompts: list[str],
+    safe_prompts: list[str],
+    layer: int,
+) -> torch.Tensor:
+    """Difference-of-means refusal direction at `resid_post[layer]`, last token.
+
+    Returns a unit vector `[d_model]` pointing from benign → refusing activations.
+    """
+    from transformer_lens.utils import get_act_name
+
+    from .activations import run_with_cache
+
+    name = get_act_name("resid_post", layer)
+
+    def _mean_last(prompts: list[str], desc: str) -> torch.Tensor:
+        acc = None
+        for p in tqdm(prompts, desc=desc):
+            _, cache = run_with_cache(loaded, p, names_filter=["resid_post"])
+            v = cache[name][0, -1].float()  # [d_model] at the last (pre-generation) token
+            acc = v if acc is None else acc + v
+        return acc / max(len(prompts), 1)
+
+    mu_harm = _mean_last(harm_prompts, "dir:harm")
+    mu_safe = _mean_last(safe_prompts, "dir:safe")
+    direction = mu_harm - mu_safe
+    return direction / (direction.norm() + 1e-8)
+
+
+def make_steering_hooks(direction: torch.Tensor, layers: list[int], coeff: float = 1.0):
+    """Forward hooks that project the refusal direction out of `resid_post` at `layers`.
+
+    `x' = x − coeff · (x · d̂) d̂`. Returns the `(name, hook)` list the existing
+    `ablation`/`perplexity` helpers already accept as `fwd_hooks`.
+    """
+    from transformer_lens.utils import get_act_name
+
+    unit = direction / (direction.norm() + 1e-8)
+
+    def make_hook(unit=unit):
+        def hook(resid: torch.Tensor, hook) -> torch.Tensor:
+            return project_out(resid, unit, coeff)
+        return hook
+
+    return [(get_act_name("resid_post", layer), make_hook()) for layer in layers]

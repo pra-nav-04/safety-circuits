@@ -31,7 +31,8 @@ you can depends on where in the network it sits.
 
 ## 2. Method
 
-Frozen models. Forward passes + hooks. No gradient updates anywhere.
+Frozen models. Forward passes + hooks. No gradient updates **in the main study** (the LoRA editing
+extension in §9 is the one deliberate exception).
 
 ### 2.1 Setup
 
@@ -135,10 +136,18 @@ submit (31/08).
 
 ## 6. Out of scope
 
-- Editing weights / steering vectors / SAEs (would be a natural follow-up; explicitly future work).
-- Multi-axis safety (deception, bias, PII) — proposal commits to **toxic language** axis only.
-- Models > 4B parameters — compute budget rules out.
-- Training new probes — only forward-pass interventions.
+**For the main (midterm) study — strictly read-only:** forward passes + hooks, no gradient updates of any
+kind. That keeps the localization result clean.
+
+**Now in scope as the deliberate next phase (§9):** **weight-editing via head-restricted LoRA** — training
+an adapter on *only* the localized safety heads to test whether the circuit is cleanly editable (and, as
+its demonstration, jailbreakable). A no-train **steering-vector** baseline accompanies it. This is a
+conscious departure from the read-only stance of the main study, scoped to the extension.
+
+**Still out of scope (future work, in the Discussion):**
+- **Multi-axis safety** (deception, bias, PII) — the study commits to the **toxic-language** axis only.
+- **Models > 4B parameters** — compute budget (single T4) rules them out.
+- SAE feature-decomposition and causal scrubbing — interesting but not pursued in this phase.
 
 ---
 
@@ -164,59 +173,73 @@ submit (31/08).
 
 ---
 
-## 9. Future research — extending the study
+## 9. Future research — from *mapping* the circuit to *editing* it
 
 > **Framing.** The midterm result is *refusal is concentrated but not modular* — but that verdict was
-> reached with **blunt ablation** (zeroing whole heads). The single most important open question is
-> therefore: **is the entanglement real, or an artifact of a crude intervention?** The extension moves
-> the project from *mapping* the refusal circuit to *acting* on it. Each direction below is a falsifiable
-> test, not just "more models." Compute is unchanged: frozen models, single Kaggle T4, forward passes +
-> hooks (Direction 2 is the only one that trains anything, and only a small probe).
+> reached with **blunt ablation** (zeroing whole heads), which could not *remove* refusal without
+> catastrophic capability collapse (Finding A). The extension **flips the question**: instead of crudely
+> deleting the localized circuit, can we **surgically retrain it** — fit a LoRA adapter on *only the
+> safety heads* (or one sub-group of neurons) so refusal turns into compliance — **without** that
+> collapse? If yes, the circuit is a genuine, cleanly **editable** safety switch (modular under the right
+> tool, even though it is not under ablation), and that same capability is, concretely, a **targeted
+> jailbreak produced by retraining only a model's safety heads** — a red-team result. We lead with the
+> science (is the circuit editable?) and present the jailbreak as its demonstration.
+>
+> **Deliberate scope change.** This introduces **training (LoRA / gradient updates) for the first time** —
+> the main study was strictly read-only (see updated §6). The edit step moves to **HuggingFace + PEFT**
+> (the repo already has an HF-port load path in `models.py`); all *evaluation* reuses the existing
+> refusal / HarmBench-jailbreak / WikiText-2-perplexity harness. LoRA on a 1–2B model fits a single
+> Kaggle T4, one model per session, as before.
 
-### Direction 1 (primary) — directional / steering-vector removal
-Instead of zeroing heads, compute the **refusal direction** in the residual stream (difference-of-means
-over harmful vs benign, à la Arditi et al.) and **ablate only that direction**, or add/subtract it as a
-steering vector.
-- **Hypothesis E1:** directional removal drops refusal with **far less** perplexity damage than head
-  zeroing. If true → refusal *is* modular and the blunt-ablation entanglement was a bad scalpel (the
-  headline flips). If false → the entanglement is real and **strengthens** Finding A.
-- **Cross-check with depth (Finding B):** does the cleanly-removable direction sit in the same
-  layers as the late-layer circuits (e.g. Gemma-3 L24)?
-- Cheap, forward-pass only; runs on the existing pipeline. **First priority — directly tests the
-  headline.**
+### F1 (primary) — head-restricted LoRA "safety-head transplant"
+Take the heads already localized by the main study (`results/kaggle_neo/<model>/*_safety_heads.json`) — or
+a single sub-group of MLP neurons — as the **only** trainable target.
+- **Method:** attach a LoRA restricted to the `W_Q/W_K/W_V/W_O` projection slices of those head indices
+  (everything else frozen); train on a **harmful→comply / refusal-suppression** objective (affirmative
+  continuation on AdvBench-style prompts); then **merge the low-rank delta back into just those heads** —
+  i.e. "replace the safety heads with retrained ones," leaving the rest of the model bit-for-bit identical.
+- **Read-outs (reuse existing harness):** refusal-rate flip, **HarmBench** jailbreak transfer, and the
+  **WikiText-2 perplexity capability control** — the decisive contrast with ablation — plus re-running the
+  per-head patching sweep to see whether the transplanted heads still "light up."
+- **Hypotheses:**
+  - **F1a (clean edit):** head-restricted LoRA flips refusal (→ high compliance) at **small ΔPPL** —
+    a clean edit exactly where blunt ablation gave gibberish ⇒ the circuit is *editable / modular*.
+  - **F1b (depth law):** the **number of heads / neurons** that must be retrained to flip refusal tracks
+    the depth→entanglement pattern of **Finding B** (late-layer circuits edit with fewer parameters;
+    early-layer ones need more).
+  - **F1c (transfer, stretch):** an adapter trained on one model's safety heads transfers to / informs a
+    **sibling generation** in the same family.
 
-### Direction 2 — decompose the entangled early-layer heads with SAEs
-Train **sparse autoencoders** on the activations of the layer-0 heads (Qwen) that ablation showed are
-load-bearing.
-- **Hypothesis E2:** a small number of **separable "refusal features"** can be isolated from the
-  general-purpose computation those heads also perform — explaining *why* early = entangled at the
-  feature (not head) level, and offering a finer removal target than whole-head ablation.
-- Heaviest item (SAEs must be trained); **stretch goal.**
+### F2 — forward the generational sweep (newer models, same families)
+Add the **newest available checkpoints** in each studied family (Qwen, Gemma, Llama), subject to the same
+**TransformerLens-support gate** that shaped the original roster (`src/safety_circuits/config.py`:
+`OFFICIAL_MODEL_NAMES`; gated weights need HF-token terms accepted).
+- Tests whether localization (H1/H2), the **depth→modularity** law (B) and the **generational migration**
+  trend (C) continue to hold on the latest releases, and supplies fresh, current targets for the F1
+  transplant.
 
-### Direction 3 — turn depth→modularity into a *prediction*
-Finding B is currently observational. Make it predictive: across held-out models, **predict removability
-(Δrefusal at fixed ΔPPL) from the dominant head's normalised depth.**
-- **Hypothesis E3:** normalised depth predicts how cleanly refusal can be removed.
-- Mostly **re-analysis of data already collected** — lowest cost.
+### Baseline (no-train) — directional / steering-vector removal
+Kept as the **non-training comparison point**: compute the refusal direction (difference-of-means over
+harmful vs benign, à la Arditi et al.) and subtract it.
+- **Question:** does directional steering flip refusal as cleanly as the trained head-LoRA?
+- This places F1 on a **"scalpel-sharpness" axis** — blunt ablation (crude) → steering vector (no-train) →
+  head-restricted LoRA (trained) — turning "modularity" into a graded, measurable property instead of a
+  yes/no.
 
-### Supporting rigor (carry over from the main study)
-- 50-prompt **human metric audit** (`audit.py`, `notebooks/06_metric_audit.ipynb`) → report ≥90% agreement.
-- **Causal scrubbing** of the candidate circuit for a stronger causal claim than single-head patching.
-- Llama-3B **higher-K** ablation (does refusal fully drop past K=10?).
+### Ethics / dual-use
+F1 is, by construction, a **jailbreak technique**. It is pursued as **defensive interpretability** on
+small, **open-weight** models in an academic setting: results reported in aggregate, **no deployable
+jailbroken weights or attack artifacts released**, with a responsible-disclosure posture. (Belongs in the
+paper's ethics statement.)
 
-### Longer-horizon (beyond the current compute/scope)
-- Scale **> 4B** parameters — does "one dominant head" soften into "a small group" with size?
-- **Multi-axis safety** — deception, bias, PII — not just toxic-language refusal.
-- **Cross-lingual** refusal circuits; more model families to test how general depth→modularity is.
-
-### Indicative sequence
-Direction 1 → Direction 3 (re-analysis) → supporting rigor → Direction 2 (SAEs, if time) → longer-horizon
-as explicit future work in the paper's Discussion.
+### Indicative sequence & priority
 
 | Direction | Tests | Cost | Priority |
 |---|---|---|---|
-| E1 — directional removal | Is "not modular" real or a scalpel artifact? (Finding A) | low (fwd-pass) | **1** |
-| E3 — depth predicts removability | Finding B, made predictive | low (re-analysis) | 2 |
-| Rigor (audit · scrubbing · K-sweep) | metric validity + causal strength | low–med | 3 |
-| E2 — SAE feature decomposition | *why* early heads entangle (Finding A/B) | high (train SAEs) | stretch |
-| Scale >4B · multi-axis · cross-lingual | generality | high | future work |
+| F2 — newer models, same families | Do H1/H2 · B · C hold on latest releases? + new targets | low (existing pipeline) | **1** |
+| F1 — head-restricted LoRA transplant | Is the localized circuit a cleanly *editable* switch / jailbreakable? | med (LoRA train, fits T4) | **2 (core)** |
+| Steering-vector baseline | Modularity without training (scalpel-sharpness axis) | low (fwd-pass) | 3 |
+| F1c — cross-generation transfer | Does one model's safety-head adapter transfer? | med | stretch |
+
+> **Longer-horizon (beyond this phase):** scale **> 4B** parameters; **multi-axis** safety (deception,
+> bias, PII); **cross-lingual** refusal circuits — carried in the paper's Discussion as future work.

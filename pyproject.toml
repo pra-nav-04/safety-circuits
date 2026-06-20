@@ -27,6 +27,9 @@ dependencies = [
     "pyyaml>=6.0",
     "jaxtyping>=0.2",
     "plotly>=5.18",
+    "peft>=0.10",  # §9 weight-editing extension (LoRA). The head-masked adapter is custom
+                   # (PEFT can't restrict below a whole projection); peft is kept for its merge
+                   # utilities / optional layer-restricted comparison and HF+PEFT framing.
 ]
 
 [project.optional-dependencies]

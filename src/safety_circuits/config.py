@@ -178,6 +178,30 @@ def resolve_dtype(spec: str) -> torch.dtype:
 
 
 @dataclass
+class EditConfig:
+    """Hyper-parameters for the §9 weight-editing extension (head-restricted LoRA +
+    the no-train steering baseline). Mirrors `ExpConfig`'s plain-dataclass style; the
+    Kaggle orchestrator overrides fields from `SC_EDIT_*` env vars.
+    """
+    # head-masked LoRA
+    rank: int = 8
+    alpha: int = 16
+    steps: int = 300
+    lr: float = 2e-4
+    batch: int = 4
+    grad_accum: int = 4
+    targets: tuple[str, ...] = ("q_proj", "k_proj", "v_proj", "o_proj")
+    # F1b: how many top safety heads to retrain (the head-count sweep)
+    head_counts: tuple[int, ...] = (1, 3, 5, 10)
+    # no-train steering baseline (Arditi et al. directional ablation)
+    steering_layer_frac: float = 0.6   # which layer's resid to read the refusal direction from (× depth)
+    steering_coeff: float = 1.0        # subtraction strength
+    # misc
+    max_target_tokens: int = 24        # truncate the affirmative target continuation
+    seed: int = 0
+
+
+@dataclass
 class ExpConfig:
     seed: int = 0
     device: str = "auto"

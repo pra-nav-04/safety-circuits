@@ -69,19 +69,15 @@ def load_model(
     )
 
 
-def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype) -> HookedTransformer:
-    """Fallback path for checkpoints (e.g., Phi-3, Llama-3.2) not natively in TL.
+def load_hf_model(spec: ModelSpec, dtype: torch.dtype):
+    """Load the raw HuggingFace model + tokenizer (CPU-streamed) for `spec`.
 
-    We load the HF model + tokenizer, hand them to TL's `from_pretrained_no_processing`,
-    which keeps the weights as-is and just wires the hooks. Folding / processing flags
-    are intentionally off — we want the geometry untouched so patching stays interpretable.
+    Shared by the TL HF-port path (`_load_via_hf_port`) and the §9 editing extension
+    (`editing.py`), which needs the HF model itself to attach/train a LoRA before
+    porting the merged result back into TransformerLens. Weights stream in with
+    `low_cpu_mem_usage=True` (avoids a full extra RAM copy); the caller moves to device.
 
-    KNOWN LIMITATION (G3): this works for standard-attention checkpoints (Llama-3.2
-    ports cleanly) but is unreliable for Phi-3-mini, whose *combined* `qkv_proj` /
-    `gate_up_proj` projections are not split into TL's separate q/k/v/gate/up weights
-    by this path — the model loads but produces garbage logits (0% baseline refusal).
-    Detect this with `quick_coherence_check()` after loading; the real fix is a manual
-    state-dict remap (split the fused projections) that needs GPU iteration to verify.
+    Returns `(hf_model, tokenizer)`.
     """
     from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
@@ -102,6 +98,24 @@ def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype)
         low_cpu_mem_usage=True,  # stream weights into place — avoids a full extra RAM copy
     )
     tokenizer = AutoTokenizer.from_pretrained(spec.hf_name, trust_remote_code=True)
+    return hf_model, tokenizer
+
+
+def _load_via_hf_port(spec: ModelSpec, device: torch.device, dtype: torch.dtype) -> HookedTransformer:
+    """Fallback path for checkpoints (e.g., Phi-3, Llama-3.2) not natively in TL.
+
+    We load the HF model + tokenizer, hand them to TL's `from_pretrained_no_processing`,
+    which keeps the weights as-is and just wires the hooks. Folding / processing flags
+    are intentionally off — we want the geometry untouched so patching stays interpretable.
+
+    KNOWN LIMITATION (G3): this works for standard-attention checkpoints (Llama-3.2
+    ports cleanly) but is unreliable for Phi-3-mini, whose *combined* `qkv_proj` /
+    `gate_up_proj` projections are not split into TL's separate q/k/v/gate/up weights
+    by this path — the model loads but produces garbage logits (0% baseline refusal).
+    Detect this with `quick_coherence_check()` after loading; the real fix is a manual
+    state-dict remap (split the fused projections) that needs GPU iteration to verify.
+    """
+    hf_model, tokenizer = load_hf_model(spec, dtype)
 
     model = HookedTransformer.from_pretrained_no_processing(
         spec.hf_name,

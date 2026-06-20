@@ -226,8 +226,17 @@ def edit_and_load(
     merge_head_lora(adapters)
     log("  merged LoRA delta into target head slices")
 
+    # Move the merged HF model off the GPU before TransformerLens rebuilds it there:
+    # otherwise both the HF model and the TL copy sit on the T4 at once and OOM. TL reads
+    # the weights from the (now-CPU) HF model and builds the hooked model on `device`.
+    hf_model.to("cpu")
+    del adapters  # frees the LoRA wrapper tensors (still on GPU) before the port
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     loaded = port_hf_to_hooked(hf_model, tokenizer, spec, torch_device, torch_dtype)
-    del hf_model, adapters
+    del hf_model
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()

@@ -56,6 +56,27 @@ METHODS     = [m.strip() for m in os.environ.get("SC_EDIT_METHODS", "steering,lo
 DO_REPATCH  = os.environ.get("SC_DO_REPATCH", "1") == "1"
 DO_TRANSFER = os.environ.get("SC_EDIT_TRANSFER", "0") == "1"  # F1c stretch (off by default)
 
+# Steering sweep grid — one pass tries every (extraction-frac × ablation-set:coeff) combo,
+# records refusal+ppl for each in <model>_edit_steering_sweep.csv, and promotes the best
+# *coherent* (ppl within tolerance) combo to the headline 'steering' row (re-eval'd with jailbreak).
+STEER_FRACS   = [float(x) for x in os.environ.get("SC_STEERING_SWEEP_FRACS", "0.6,0.8").split(",") if x.strip()] or [0.6]
+STEER_PPL_TOL = float(os.environ.get("SC_STEERING_PPL_TOL", "0.5"))  # "coherent" = ppl ≤ baseline×(1+tol)
+
+def _parse_steer_grid() -> list[tuple[str, float]]:
+    # format: "<layers>:<coeff>" combos separated by ';'. <layers> may contain commas
+    # ("all", "extract", "10,11,12"); coeff is after the LAST colon.
+    raw = os.environ.get("SC_STEERING_SWEEP", "all:0.1;all:0.2;all:0.4;extract:1.0")
+    grid = []
+    for combo in raw.split(";"):
+        combo = combo.strip()
+        if not combo or ":" not in combo:
+            continue
+        spec, coeff = combo.rsplit(":", 1)
+        grid.append((spec.strip(), float(coeff)))
+    return grid or [("extract", 1.0)]
+
+STEER_GRID = _parse_steer_grid()
+
 HEADS_DIR   = pathlib.Path(os.environ.get("SC_HEADS_DIR", str(RESULTS_DIR / "kaggle_neo")))
 
 WORK     = pathlib.Path(os.environ.get("SC_OUT", "/kaggle/working"))
@@ -199,18 +220,62 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
 
         if "steering" in METHODS:
             def _steer():
-                layer = max(0, min(loaded.n_layers - 1, int(cfg.steering_layer_frac * loaded.n_layers)))
-                direction = compute_refusal_direction(
-                    loaded, [h.text for h, _ in train_split], [s.text for _, s in train_split], layer
-                )
-                abl_layers = resolve_steering_layers(cfg.steering_layers, layer, loaded.n_layers)
-                hooks = make_steering_hooks(direction, abl_layers, cfg.steering_coeff)
+                base_ppl = base.perplexity
+                harm_txt = [h.text for h, _ in train_split]
+                safe_txt = [s.text for _, s in train_split]
+
+                # One pass collects the whole (extraction-layer × ablation-set × coeff) grid.
+                # Direction depends only on the extraction layer → compute once per frac and
+                # reuse across all (layers, coeff) combos to keep the sweep cheap.
+                dir_cache: dict[int, "object"] = {}
+                def _direction(frac):
+                    layer = max(0, min(loaded.n_layers - 1, int(frac * loaded.n_layers)))
+                    if layer not in dir_cache:
+                        dir_cache[layer] = compute_refusal_direction(loaded, harm_txt, safe_txt, layer)
+                    return layer, dir_cache[layer]
+
+                sweep_rows = []
+                for frac in STEER_FRACS:
+                    layer, direction = _direction(frac)
+                    for spec, coeff in STEER_GRID:
+                        abl = resolve_steering_layers(spec, layer, loaded.n_layers)
+                        hooks = make_steering_hooks(direction, abl, coeff)
+                        # refusal + perplexity only (skip jailbreak here — cheap sweep)
+                        r = evaluate_edited_model(loaded, f"steer_L{layer}_{spec}_c{coeff}",
+                                                  eval_prompts, None, ppl_texts, fwd_hooks=hooks)
+                        ppl_pct = (100.0 * (r.perplexity - base_ppl) / base_ppl
+                                   if (base_ppl and r.perplexity) else None)
+                        coherent = (r.perplexity is not None and base_ppl is not None
+                                    and r.perplexity <= base_ppl * (1.0 + STEER_PPL_TOL))
+                        sweep_rows.append({
+                            "extract_layer": layer, "ablate_spec": spec, "n_ablate_layers": len(abl),
+                            "coeff": coeff, "refusal_rate": r.refusal_rate, "perplexity": r.perplexity,
+                            "perplexity_pct_change": ppl_pct, "coherent": coherent,
+                        })
+                        pstr = f"{r.perplexity:.1f}" if r.perplexity is not None else "n/a"
+                        log(f"[{model_key}] steer L{layer} {spec}×{len(abl)} c{coeff}: "
+                            f"refusal {r.refusal_rate:.0%}, ppl {pstr} "
+                            f"({'coherent' if coherent else 'BROKEN'})")
+                pd.DataFrame(sweep_rows).to_csv(out / f"{model_key}_edit_steering_sweep.csv", index=False)
+
+                # Best = lowest refusal among coherent combos (tie-break: lower ppl); if none
+                # stay coherent, fall back to the lowest-refusal combo overall (flagged in csv).
+                coherent_rows = [r for r in sweep_rows if r["coherent"]]
+                pool = coherent_rows or sweep_rows
+                best = min(pool, key=lambda r: (r["refusal_rate"], r["perplexity"] or 1e9))
+                bpstr = f"{best['perplexity']:.1f}" if best["perplexity"] is not None else "n/a"
+                log(f"[{model_key}] best steering: L{best['extract_layer']} {best['ablate_spec']} "
+                    f"c{best['coeff']} → refusal {best['refusal_rate']:.0%}, ppl {bpstr}"
+                    f"{'' if coherent_rows else '  (NO coherent combo — steering cannot cleanly remove refusal)'}")
+
+                # Full eval of the winner (now WITH jailbreak) → the headline 'steering' row.
+                layer = best["extract_layer"]   # its direction is already in dir_cache
+                hooks = make_steering_hooks(dir_cache[layer], resolve_steering_layers(
+                    best["ablate_spec"], layer, loaded.n_layers), best["coeff"])
                 rep = evaluate_edited_model(loaded, "steering", eval_prompts, jb_prompts, ppl_texts,
                                             fwd_hooks=hooks)
                 rows.append(rep.to_row())
                 pd.DataFrame([rep.to_row()]).to_csv(out / f"{model_key}_edit_steering.csv", index=False)
-                log(f"[{model_key}] steering refusal {rep.refusal_rate:.0%} "
-                    f"(dir@L{layer}, ablate {cfg.steering_layers} ×{len(abl_layers)}L, coeff {cfg.steering_coeff})")
             _try("steering", _steer)
     finally:
         loaded = None      # drop the run_one reference BEFORE gc so the VRAM is released

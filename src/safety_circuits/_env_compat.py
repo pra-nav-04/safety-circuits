@@ -18,6 +18,7 @@ real package already imports fine.
 
 from __future__ import annotations
 
+import importlib.machinery
 import sys
 import types
 
@@ -35,6 +36,12 @@ def _stub_module(name: str) -> None:
 
     mod = types.ModuleType(name)
     mod.__path__ = []  # mark as a package so `import name.sub` is tolerated
+    # A valid __spec__ is REQUIRED: transformers probes availability with
+    # importlib.util.find_spec(name), which raises `ValueError: <name>.__spec__ is None`
+    # for a sys.modules entry whose spec is None. With a spec present, find_spec returns
+    # it; the missing dist-metadata then makes transformers' _is_package_available()
+    # resolve to False, so it cleanly skips the optional import.
+    mod.__spec__ = importlib.machinery.ModuleSpec(name, loader=None, is_package=True)
     # PEP 562: any attribute access returns a MagicMock, which nests and is callable
     # indefinitely (covers e.g. `torchaudio.transforms.RNNTLoss(...)`).
     mod.__getattr__ = lambda attr: MagicMock()

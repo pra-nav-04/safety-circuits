@@ -110,15 +110,20 @@ class HeadMaskedLoRALinear(nn.Module):
         self.scaling = alpha / rank
         out_features, in_features = base.weight.shape
 
+        # Co-locate all new tensors with the base weight, so the adapter works whether
+        # it is injected before or after `hf_model.to(device)` (otherwise the LoRA params
+        # land on CPU while the base is on CUDA → device-mismatch in forward).
+        device = base.weight.device
+
         # LoRA factors in fp32 for stable T4 training; base may be fp16.
-        self.lora_A = nn.Parameter(torch.zeros(rank, in_features, dtype=torch.float32))
-        self.lora_B = nn.Parameter(torch.zeros(out_features, rank, dtype=torch.float32))
+        self.lora_A = nn.Parameter(torch.zeros(rank, in_features, dtype=torch.float32, device=device))
+        self.lora_B = nn.Parameter(torch.zeros(out_features, rank, dtype=torch.float32, device=device))
         nn.init.kaiming_uniform_(self.lora_A, a=5 ** 0.5)
         # lora_B stays zero → initial delta is exactly zero → edited model == base before training.
 
         out_mask, in_mask = self._build_masks(role, heads, info, out_features, in_features)
-        self.register_buffer("out_mask", out_mask)  # [out, 1]
-        self.register_buffer("in_mask", in_mask)     # [1, in]
+        self.register_buffer("out_mask", out_mask.to(device))  # [out, 1]
+        self.register_buffer("in_mask", in_mask.to(device))     # [1, in]
 
     @staticmethod
     def _build_masks(role, heads, info, out_features, in_features):

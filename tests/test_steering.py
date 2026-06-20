@@ -5,7 +5,16 @@ CPU/torch-only — no TransformerLens.
 
 import torch
 
-from safety_circuits.steering import project_out
+from safety_circuits.steering import project_out, resolve_steering_layers
+
+
+def test_resolve_steering_layers():
+    assert resolve_steering_layers("all", 15, 26) == list(range(26))
+    assert resolve_steering_layers("extract", 15, 26) == [15]
+    assert resolve_steering_layers("10,11,12", 15, 26) == [10, 11, 12]
+    assert resolve_steering_layers("10, 99, 12", 15, 26) == [10, 12]   # out-of-range dropped
+    assert resolve_steering_layers("", 15, 26) == list(range(26))      # default -> all
+    assert resolve_steering_layers("99", 15, 26) == [15]               # all invalid -> fallback
 
 
 def test_project_out_removes_component():

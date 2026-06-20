@@ -38,7 +38,7 @@ from safety_circuits.data import (
     save_jsonl,
 )
 from safety_circuits.editing import edit_and_load, load_via_port
-from safety_circuits.steering import compute_refusal_direction, make_steering_hooks
+from safety_circuits.steering import compute_refusal_direction, make_steering_hooks, resolve_steering_layers
 from safety_circuits.edit_eval import evaluate_edited_model, repatch_after_edit
 from safety_circuits.analysis import head_heatmap, plot_heatmap, plot_k_sweep
 from safety_circuits.refusal import score_refusal
@@ -80,12 +80,15 @@ def _edit_cfg() -> EditConfig:
         alpha=int(os.environ.get("SC_EDIT_ALPHA", "16")),
         steps=int(os.environ.get("SC_EDIT_STEPS", "300")),
         lr=float(os.environ.get("SC_EDIT_LR", "2e-4")),
+        steering_coeff=float(os.environ.get("SC_STEERING_COEFF", "1.0")),
         seed=SEED,
     )
     if targets.strip():
         kw["targets"] = tuple(t.strip() for t in targets.split(",") if t.strip())
     if head_counts.strip():
         kw["head_counts"] = tuple(int(x) for x in head_counts.split(",") if x.strip())
+    if os.environ.get("SC_STEERING_LAYERS", "").strip():
+        kw["steering_layers"] = os.environ["SC_STEERING_LAYERS"].strip()
     return EditConfig(**kw)
 
 
@@ -200,12 +203,14 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 direction = compute_refusal_direction(
                     loaded, [h.text for h, _ in train_split], [s.text for _, s in train_split], layer
                 )
-                hooks = make_steering_hooks(direction, list(range(loaded.n_layers)), cfg.steering_coeff)
+                abl_layers = resolve_steering_layers(cfg.steering_layers, layer, loaded.n_layers)
+                hooks = make_steering_hooks(direction, abl_layers, cfg.steering_coeff)
                 rep = evaluate_edited_model(loaded, "steering", eval_prompts, jb_prompts, ppl_texts,
                                             fwd_hooks=hooks)
                 rows.append(rep.to_row())
                 pd.DataFrame([rep.to_row()]).to_csv(out / f"{model_key}_edit_steering.csv", index=False)
-                log(f"[{model_key}] steering refusal {rep.refusal_rate:.0%} (layer {layer})")
+                log(f"[{model_key}] steering refusal {rep.refusal_rate:.0%} "
+                    f"(dir@L{layer}, ablate {cfg.steering_layers} ×{len(abl_layers)}L, coeff {cfg.steering_coeff})")
             _try("steering", _steer)
     finally:
         loaded = None      # drop the run_one reference BEFORE gc so the VRAM is released

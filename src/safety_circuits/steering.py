@@ -19,6 +19,26 @@ if TYPE_CHECKING:  # TransformerLens is imported lazily so this module (and the 
     from .models import LoadedModel  # test of `project_out`) need no TL at import time.
 
 
+def resolve_steering_layers(spec: str, extract_layer: int, n_layers: int) -> list[int]:
+    """Map a layer-set spec to concrete layer indices for directional ablation.
+
+    `"all"` ablates the refusal direction out of every layer's residual (the literal
+    Arditi method, but on some models — e.g. gemma3-1b — this compounds and wrecks
+    perplexity); `"extract"` ablates only at the layer the direction was read from (the
+    minimal, conservative intervention); a comma list like `"10,11,12"` ablates an
+    explicit window. Pairs with `steering_coeff` for a fair midpoint on the
+    blunt-ablation → steering → LoRA scalpel-sharpness axis.
+    """
+    spec = (spec or "all").strip().lower()
+    if spec in ("", "all"):
+        return list(range(n_layers))
+    if spec == "extract":
+        return [extract_layer]
+    out = [int(t) for t in spec.split(",") if t.strip() != ""]
+    out = [i for i in out if 0 <= i < n_layers]
+    return out or [extract_layer]
+
+
 def project_out(resid: torch.Tensor, direction: torch.Tensor, coeff: float = 1.0) -> torch.Tensor:
     """`x − coeff·(x·d̂)d̂` over the last dim. Pure torch — the steering hook's core."""
     unit = direction / (direction.norm() + 1e-8)

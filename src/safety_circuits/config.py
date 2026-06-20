@@ -196,6 +196,7 @@ class EditConfig:
     # no-train steering baseline (Arditi et al. directional ablation)
     steering_layer_frac: float = 0.6   # which layer's resid to read the refusal direction from (× depth)
     steering_coeff: float = 1.0        # subtraction strength
+    steering_layers: str = "all"       # where to ablate: "all" | "extract" | comma list e.g. "10,11,12"
     # misc
     max_target_tokens: int = 24        # truncate the affirmative target continuation
     seed: int = 0

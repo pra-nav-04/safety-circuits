@@ -28,6 +28,25 @@ if TYPE_CHECKING:  # these pull in TransformerLens; import lazily so `build_supp
 
 
 # --------------------------------------------------------------- training data
+def _as_id_list(x) -> list[int]:
+    """Normalise a tokenizer return to a flat python list[int].
+
+    Different transformers versions return a bare list, a tensor, or a
+    dict/BatchEncoding (especially `apply_chat_template(tokenize=True)`), sometimes with
+    a leading batch dim — coerce them all to `list[int]` so collation never sees a str
+    (the `apply_chat_template` dict keys) or an extra dimension.
+    """
+    if hasattr(x, "input_ids"):          # BatchEncoding
+        x = x.input_ids
+    elif isinstance(x, dict):
+        x = x["input_ids"]
+    if hasattr(x, "tolist"):             # torch tensor / numpy array
+        x = x.tolist()
+    if x and isinstance(x[0], (list, tuple)):  # leading batch dim
+        x = x[0]
+    return list(x)
+
+
 def build_suppression_examples(
     tokenizer,
     spec: ModelSpec,
@@ -42,7 +61,7 @@ def build_suppression_examples(
     Returns dicts of `{input_ids, labels}` (python lists).
     """
     examples: list[dict] = []
-    chat_kwargs: dict = {"add_generation_prompt": True, "tokenize": True}
+    chat_kwargs: dict = {"add_generation_prompt": True, "tokenize": True, "return_dict": False}
     if spec.no_think:
         chat_kwargs["enable_thinking"] = False  # Qwen3: no <think> block
 
@@ -51,13 +70,13 @@ def build_suppression_examples(
 
     for user_msg, target in pairs:
         if has_template:
-            prompt_ids = tokenizer.apply_chat_template(
+            prompt_ids = _as_id_list(tokenizer.apply_chat_template(
                 [{"role": "user", "content": user_msg}], **chat_kwargs
-            )
+            ))
         else:
-            prompt_ids = tokenizer(user_msg, add_special_tokens=True)["input_ids"]
+            prompt_ids = _as_id_list(tokenizer(user_msg, add_special_tokens=True))
 
-        target_ids = tokenizer(target, add_special_tokens=False)["input_ids"][:max_target_tokens]
+        target_ids = _as_id_list(tokenizer(target, add_special_tokens=False))[:max_target_tokens]
         if eos is not None:
             target_ids = target_ids + [eos]
 

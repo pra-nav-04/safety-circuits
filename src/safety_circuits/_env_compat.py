@@ -1,52 +1,23 @@
 """Environment-compatibility shim — imported first by `safety_circuits/__init__.py`.
 
-Kaggle's image periodically downgrades torch while leaving torchaudio/torchvision
-pinned to the old torch (ABI mismatch), and recent `transformers` EAGERLY imports
-torchaudio (via `loss_rnnt.py`) the moment TransformerLens does
-`from transformers import BertForPreTraining`. Depending on whether the broken
-extension is present, absent, or ABI-mismatched, that surfaces as an `undefined symbol`
-OSError or a `ModuleNotFoundError` — both before any of our code runs.
+Background: Kaggle's image periodically downgrades torch while leaving torchaudio /
+torchvision pinned to the old torch (ABI mismatch), and recent `transformers` probes /
+eagerly imports those extensions the moment TransformerLens does
+`from transformers import ...`.
 
-Patching transformers' `is_*_available()` flags is unreliable (the value is captured
-into several namespaces before we get a chance). The robust fix is to make the bare
-`import torchaudio` / `import torchvision` simply succeed: if the real package can't be
-imported cleanly, register a forgiving stub in `sys.modules`. We use no audio/vision
-features, so a stub is harmless. Runs at package import, before every
-`import transformer_lens` in our modules → all entry points self-heal. No-op when the
-real package already imports fine.
+The correct fix lives in the bootstrap (`kaggle/*` notebook): it **uninstalls**
+torchaudio/torchvision, after which they are genuinely absent and transformers'
+`is_torchaudio_available()` / `is_torchvision_available()` resolve to False via
+`importlib.util.find_spec(...) is None` — so transformers cleanly SKIPS the optional
+imports. We use no audio/vision features, so nothing is lost.
+
+A previous version of this shim installed `sys.modules` stubs for the missing packages.
+That backfired: a stub makes `find_spec` return non-None, so transformers then believed
+the extension WAS present and tried real submodule imports (e.g. `torchvision.io`) that a
+stub can't satisfy. So we deliberately do NOT stub — absent is exactly what we want.
+
+This module is kept (and imported early) as the documented home for any such env fix; it
+is currently a no-op.
 """
 
 from __future__ import annotations
-
-import importlib.machinery
-import sys
-import types
-
-
-def _stub_module(name: str) -> None:
-    """If `name` can't be imported cleanly, install a forgiving stub so any later
-    `import name` (e.g. transformers' eager `import torchaudio`) succeeds."""
-    try:
-        __import__(name)
-        return  # real module imports fine — leave it alone
-    except BaseException:  # ModuleNotFoundError, or OSError from an ABI-mismatched .so
-        sys.modules.pop(name, None)  # drop any half-initialised entry
-
-    from unittest.mock import MagicMock
-
-    mod = types.ModuleType(name)
-    mod.__path__ = []  # mark as a package so `import name.sub` is tolerated
-    # A valid __spec__ is REQUIRED: transformers probes availability with
-    # importlib.util.find_spec(name), which raises `ValueError: <name>.__spec__ is None`
-    # for a sys.modules entry whose spec is None. With a spec present, find_spec returns
-    # it; the missing dist-metadata then makes transformers' _is_package_available()
-    # resolve to False, so it cleanly skips the optional import.
-    mod.__spec__ = importlib.machinery.ModuleSpec(name, loader=None, is_package=True)
-    # PEP 562: any attribute access returns a MagicMock, which nests and is callable
-    # indefinitely (covers e.g. `torchaudio.transforms.RNNTLoss(...)`).
-    mod.__getattr__ = lambda attr: MagicMock()
-    sys.modules[name] = mod
-
-
-for _name in ("torchaudio", "torchvision"):
-    _stub_module(_name)

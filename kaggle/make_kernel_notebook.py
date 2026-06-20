@@ -51,6 +51,14 @@ else:
 
 sys.path.insert(0, str(repo / "src"))
 
+# Drop any stale copies cached from a previous run in THIS kernel so the freshly pulled
+# code (and the torchaudio/torchvision import shim) actually loads — without needing a
+# manual "Restart session". Keep torch itself; only purge what we reload.
+for _m in [m for m in list(sys.modules)
+           if m.split(".")[0] in ("safety_circuits", "transformer_lens", "transformers",
+                                   "torchaudio", "torchvision")]:
+    del sys.modules[_m]
+
 # Which orchestrator to run: the main multi-model study (default) or the §9 editing
 # suite. Set os.environ["SC_ORCHESTRATOR"] in a cell above to switch — the notebook
 # itself never needs editing.

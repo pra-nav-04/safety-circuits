@@ -161,3 +161,62 @@ submit (31/08).
 - The mechanistic-map figures (`paper/figures/`: per-head heatmaps, removal-vs-ΔPPL coupling, generational migration, jailbreak slope). ✅
 - `<model>_safety_heads.json` (top-K causal heads) per model in `results/kaggle_neo/`. ✅
 - Midterm (19/06) + final (24/07) presentations. ◻ pending.
+
+---
+
+## 9. Future research — extending the study
+
+> **Framing.** The midterm result is *refusal is concentrated but not modular* — but that verdict was
+> reached with **blunt ablation** (zeroing whole heads). The single most important open question is
+> therefore: **is the entanglement real, or an artifact of a crude intervention?** The extension moves
+> the project from *mapping* the refusal circuit to *acting* on it. Each direction below is a falsifiable
+> test, not just "more models." Compute is unchanged: frozen models, single Kaggle T4, forward passes +
+> hooks (Direction 2 is the only one that trains anything, and only a small probe).
+
+### Direction 1 (primary) — directional / steering-vector removal
+Instead of zeroing heads, compute the **refusal direction** in the residual stream (difference-of-means
+over harmful vs benign, à la Arditi et al.) and **ablate only that direction**, or add/subtract it as a
+steering vector.
+- **Hypothesis E1:** directional removal drops refusal with **far less** perplexity damage than head
+  zeroing. If true → refusal *is* modular and the blunt-ablation entanglement was a bad scalpel (the
+  headline flips). If false → the entanglement is real and **strengthens** Finding A.
+- **Cross-check with depth (Finding B):** does the cleanly-removable direction sit in the same
+  layers as the late-layer circuits (e.g. Gemma-3 L24)?
+- Cheap, forward-pass only; runs on the existing pipeline. **First priority — directly tests the
+  headline.**
+
+### Direction 2 — decompose the entangled early-layer heads with SAEs
+Train **sparse autoencoders** on the activations of the layer-0 heads (Qwen) that ablation showed are
+load-bearing.
+- **Hypothesis E2:** a small number of **separable "refusal features"** can be isolated from the
+  general-purpose computation those heads also perform — explaining *why* early = entangled at the
+  feature (not head) level, and offering a finer removal target than whole-head ablation.
+- Heaviest item (SAEs must be trained); **stretch goal.**
+
+### Direction 3 — turn depth→modularity into a *prediction*
+Finding B is currently observational. Make it predictive: across held-out models, **predict removability
+(Δrefusal at fixed ΔPPL) from the dominant head's normalised depth.**
+- **Hypothesis E3:** normalised depth predicts how cleanly refusal can be removed.
+- Mostly **re-analysis of data already collected** — lowest cost.
+
+### Supporting rigor (carry over from the main study)
+- 50-prompt **human metric audit** (`audit.py`, `notebooks/06_metric_audit.ipynb`) → report ≥90% agreement.
+- **Causal scrubbing** of the candidate circuit for a stronger causal claim than single-head patching.
+- Llama-3B **higher-K** ablation (does refusal fully drop past K=10?).
+
+### Longer-horizon (beyond the current compute/scope)
+- Scale **> 4B** parameters — does "one dominant head" soften into "a small group" with size?
+- **Multi-axis safety** — deception, bias, PII — not just toxic-language refusal.
+- **Cross-lingual** refusal circuits; more model families to test how general depth→modularity is.
+
+### Indicative sequence
+Direction 1 → Direction 3 (re-analysis) → supporting rigor → Direction 2 (SAEs, if time) → longer-horizon
+as explicit future work in the paper's Discussion.
+
+| Direction | Tests | Cost | Priority |
+|---|---|---|---|
+| E1 — directional removal | Is "not modular" real or a scalpel artifact? (Finding A) | low (fwd-pass) | **1** |
+| E3 — depth predicts removability | Finding B, made predictive | low (re-analysis) | 2 |
+| Rigor (audit · scrubbing · K-sweep) | metric validity + causal strength | low–med | 3 |
+| E2 — SAE feature decomposition | *why* early heads entangle (Finding A/B) | high (train SAEs) | stretch |
+| Scale >4B · multi-axis · cross-lingual | generality | high | future work |

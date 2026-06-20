@@ -1,0 +1,83 @@
+\mode<presentation>
+
+% Latex Requirements
+\RequirePackage{tikz}
+\RequirePackage{xcolor}
+\RequirePackage{extarrows}
+\RequirePackage{subcaption}
+\RequirePackage{ifthen}
+\RequirePackage[outline]{contour}
+\RequirePackage{enumerate}
+\RequirePackage{comment}
+\RequirePackage{svg}
+\RequirePackage{times}
+
+% Style of the package
+
+% If compiling with XeTeX or LuaTeX, use fontspec to load the bundled Exo2 font
+\RequirePackage{ifxetex}
+\RequirePackage{ifluatex}
+% Combined check: set \ifexoorluatex to true when either XeTeX or LuaTeX is used
+\newif\ifexoorluatex
+\exoorluatexfalse
+\ifxetex\exoorluatextrue\fi
+\ifluatex\exoorluatextrue\fi
+\ifexoorluatex
+  \RequirePackage{fontspec}
+  % Path is relative to this .sty file / project root: Exo_2/static/
+  % Register Exo2 by using the '*' placeholder so fontspec forms filenames like Exo2-Regular.ttf
+  \newfontfamily\exotitlefont[Path=Exo_2/static/,Extension=.ttf,Ligatures=TeX,
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+    ItalicFont = *-Italic,
+    BoldItalicFont = *-BoldItalic
+  ]{Exo2}
+  % Subtitle / body font: Calibri is a Windows-only system font, so fall back to the
+  % bundled Exo 2 family (self-contained, no OS font dependency for reproducible builds).
+  \newfontfamily\calibfont[Path=Exo_2/static/,Extension=.ttf,Ligatures=TeX,Scale=MatchLowercase,
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+    ItalicFont = *-Italic,
+    BoldItalicFont = *-BoldItalic
+  ]{Exo2}
+  % Use Exo2 for the titles
+    \setbeamerfont{title}{family=\exotitlefont, size=\LARGE, series=\bfseries}
+    \setbeamerfont{frametitle}{family=\exotitlefont, size=\Large, series=\bfseries}
+    \setbeamerfont{block title}{family=\exotitlefont, size=\normalsize, series=\bfseries}
+
+    % Use Calibri for subtitles
+    \setbeamerfont{framesubtitle}{family=\calibfont, size=\normalsize, series=\mdseries}
+    % Set the font: use Exo2 for various elements when XeTeX or LuaTeX are active
+    \setbeamerfont{author}{family=\calibfont, size=\large, series=\mdseries}
+    \setbeamerfont{author in head/foot}{family=\calibfont, size=\small, series=\mdseries}
+    \setbeamerfont{date}{family=\calibfont, size=\normalsize, series=\mdseries}
+    \setbeamerfont{itemize/enumerate body}{family=\exotitlefont, size=\normalsize, series=\mdseries}
+    \setbeamerfont{block body}{family=\calibfont, size=\normalsize, series=\mdseries}
+\fi
+% Else, if compiling with pdfLaTeX, do nothing and use the default font settings
+
+
+\newcommand{\UBStyle}{default} %TODO add other styles
+
+% Settings
+\useinnertheme{UniBonn}
+\useoutertheme{UniBonn}
+\usecolortheme{UniBonn}
+
+
+
+
+
+
+\newcommand{\checkfor}[1]{%
+	\ifcsname#1\endcsname%
+	1
+	\else%
+	0
+	\fi%
+}
+
+\newcommand{\AddLogo}[1]{\newcommand{\TheLogo}{#1}}
+\newsavebox{\longestsec}% Box to save longest sectional heading
+
+\mode<all>

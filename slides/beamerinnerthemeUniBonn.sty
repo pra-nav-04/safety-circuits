@@ -1,0 +1,208 @@
+\mode<presentation>
+
+
+	
+\newcommand{\toptitle}[1][0.2cm]{	
+	\vskip #1
+	\begin{beamercolorbox}[wd=\paperwidth]{}
+		\begin{beamercolorbox}[sep=0.75em, wd=0.84\paperwidth, ht=.11\paperheight, leftskip = 2ex]{frametitle}
+			% Vertically center title+subtitle inside the fixed-height frametitle box
+			\vbox to .06\paperheight{\vskip0pt\vfill
+				{\usebeamerfont{frametitle}\insertframetitle\par
+				 \usebeamerfont{framesubtitle}\insertframesubtitle\par}%
+			\vfill}
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=0.08\paperwidth, ht=.11\paperheight, leftskip = 2ex]{graybox}
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=0.08\paperwidth, ht=.11\paperheight, leftskip = 2ex]{yellowbox}
+		\end{beamercolorbox}%
+	\end{beamercolorbox}
+}
+
+\newcommand{\bigtoptitle}[1][0.2cm]{	
+	\vskip #1
+	\begin{beamercolorbox}[wd=\paperwidth]{}
+		\begin{beamercolorbox}[sep=0.75em, wd=0.84\paperwidth, ht=.15\paperheight, leftskip = 2ex]{frametitle}
+			% Vertically center title+subtitle inside the larger fixed-height frametitle box
+			\vbox to .06\paperheight{\vskip0pt\vfill
+				{\usebeamerfont{frametitle}\insertframetitle\par
+				 \usebeamerfont{framesubtitle}\insertframesubtitle\par}%
+			\vfill}
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=0.08\paperwidth, ht=.15\paperheight, leftskip = 2ex]{graybox}
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=0.08\paperwidth, ht=.15\paperheight, leftskip = 2ex]{yellowbox}
+		\end{beamercolorbox}%
+	\end{beamercolorbox}
+}
+
+
+
+% Title page
+\defbeamertemplate*{title page}{UniBonn}[1][]
+{ 
+	\begin{beamercolorbox}[wd=\paperwidth]{}
+		\begin{beamercolorbox}[sep=0.4em, wd=0.8\paperwidth, ht=.24\paperheight, leftskip = 2ex]{frametitle}
+			% vertically centre the (possibly two-line) title with clear top/bottom padding
+			\vbox to .2\paperheight{\vfill\usebeamerfont{title}\inserttitle\par\vfill}%
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=0.1\paperwidth, ht=.24\paperheight, leftskip = 2ex]{graybox}
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=0.1\paperwidth, ht=.24\paperheight, leftskip = 2ex]{yellowbox}
+		\end{beamercolorbox}%
+	\end{beamercolorbox}
+	\vskip 1cm
+			\begin{beamercolorbox}[wd=\paperwidth, leftskip = 2ex]{author}
+				\usebeamerfont{author}\insertauthor%
+			\end{beamercolorbox}
+
+			\begin{beamercolorbox}[wd=\paperwidth, leftskip = 2ex]{date}
+				\usebeamerfont{date}\insertdate%
+			\end{beamercolorbox}
+	\vskip 1.5cm
+
+	\begin{beamercolorbox}[wd=\paperwidth]{}
+		\ifthenelse{\checkfor{TheLogo} = 0}{
+			\begin{beamercolorbox}[wd=\paperwidth, right]{}
+				\includegraphics[width = 0.30\paperwidth]{logos/logo}\hspace*{5ex}
+			\end{beamercolorbox}
+		}{
+			\begin{beamercolorbox}[wd=.45\paperwidth, leftskip = 1cm]{}\TheLogo
+			\end{beamercolorbox}
+			\begin{beamercolorbox}[wd=.45\paperwidth, right]{}
+				\includegraphics[width = 0.30\paperwidth]{logos/logo}\hspace*{5ex}
+			\end{beamercolorbox}
+		}
+
+	\end{beamercolorbox}
+	\vskip 0.8cm
+}
+
+% Footline
+\setbeamertemplate{footline}
+{
+%\rule{\paperwidth}{0.5pt}
+%\vskip0.1cm
+	\begin{beamercolorbox}[wd=\paperwidth]{}
+		\begin{beamercolorbox}[wd=.4\paperwidth, leftskip=2ex]{graytext}%
+				\usebeamerfont{author in foot}\insertshortauthor~\beamer@ifempty{\insertshortinstitute}{}
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.45\paperwidth, leftskip=8ex]{graytext}%
+			\usebeamerfont{title in foot}\insertshorttitle
+		\end{beamercolorbox}%
+		\begin{beamercolorbox}[wd=.15\paperwidth, right]{graytext}%
+			\insertframenumber{} / \inserttotalframenumber\hspace*{2.75ex}
+		\end{beamercolorbox}%
+	\end{beamercolorbox}
+\vskip0.1cm
+}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Standard Frame
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\ifthenelse{\equal{\UBStyle}{default}}{%
+	
+	%DEFAULT STYLE
+		\setbeamertemplate{frametitle}{\toptitle}
+}{
+	\ifthenelse{\equal{\UBStyle}{vertical}}{%
+	
+	%VERTICAL STYLE
+			% Frame Title
+			\setbeamertemplate{frametitle}{
+				\begin{beamercolorbox}[wd=\paperwidth, ht=1.0\paperheight]{}
+					\begin{beamercolorbox}[sep=1em, wd=0.2\paperwidth, ht=.7\paperheight]{frametitle}
+						\usebeamerfont{frametitle}\insertframetitle\par%
+						\usebeamerfont{framesubtitle}\insertframesubtitle\par%
+					\end{beamercolorbox}%
+					
+					\begin{beamercolorbox}[wd=0.2\paperwidth, ht=.15\paperheight]{graybox}
+					\end{beamercolorbox}%
+					
+					\begin{beamercolorbox}[wd=0.2\paperwidth, ht=.15\paperheight]{yellowbox}
+					\end{beamercolorbox}%
+			\end{beamercolorbox}}
+	}
+	{
+	%
+	}
+}
+
+% Frame with centered title
+\newenvironment{framecenter}[1][]{
+	% Frame Title
+	\setbeamertemplate{frametitle}{\toptitle[4cm]}
+	\begin{frame}{#1}}{\end{frame}}
+
+% Frame with long title
+\newenvironment{framelong}[1][]{
+	% Frame Title
+	\setbeamertemplate{frametitle}{\bigtoptitle}
+	\begin{frame}{#1}}{\end{frame}}
+	
+	
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Frame for TABLE OF CONTENTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\ifthenelse{\equal{\UBStyle}{default}}{%
+
+	%DEFAULT STYLE
+		\newenvironment{framecontent}[1][]{
+		% Frame Title
+		\setbeamertemplate{frametitle}{\toptitle}
+		\begin{frame}{#1}\setbeamercolor{section in toc}{fg=black}\tableofcontents}
+		% Environment content
+		{\end{frame}}
+
+	}{
+	\ifthenelse{\equal{\UBStyle}{vertical}}{%
+
+	% VERTICAL STYLE
+	%
+	}
+	{
+		%
+	}
+	}
+
+% Frame for overview current section
+\newenvironment{frameoverview}[1][]{
+	% Frame Title
+	\setbeamertemplate{frametitle}{\toptitle}
+
+	\begin{frame}{#1}\setbeamercolor{section in toc}{fg=black}\tableofcontents[currentsection]}
+	{\end{frame}}
+
+
+
+
+
+
+
+
+% Blank frame
+\newenvironment{frameblank}[1][]{
+	% Frame Title
+	\setbeamertemplate{frametitle}{}
+	\begin{frame}{#1}}{\end{frame}}
+	
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{blocks}[rounded][shadow=true]
+
+% Items
+\setbeamertemplate{items}[circle]
+\setbeamertemplate{enumerate subitem}[square]
+\setbeamertemplate{itemize subitem}{\contour{themeblue}{-}}
+\setbeamertemplate{sections/subsections in toc}[square]
+
+
+
+\newenvironment{defblock}[1][]{\begin{block}{\transparent{0.5}#1}\transparent{0.5}}{\end{block}}
+
+
+\mode
+<all>

@@ -118,14 +118,15 @@ def _load_heads(model_key: str) -> list[HeadRef]:
     return [HeadRef(int(h["layer"]), int(h["head"])) for h in raw]
 
 
-def _free(loaded) -> None:
+def _gpu_gc() -> None:
+    """Collect + empty the CUDA cache. NOTE: the caller must drop its own reference to
+    any model FIRST (e.g. `loaded = None`); a helper that takes the model as an arg can
+    only delete its local copy, leaving the caller's reference alive and the VRAM pinned."""
     try:
         import matplotlib.pyplot as plt
         plt.close("all")
     except Exception:
         pass
-    if loaded is not None:
-        del loaded
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -207,7 +208,8 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 log(f"[{model_key}] steering refusal {rep.refusal_rate:.0%} (layer {layer})")
             _try("steering", _steer)
     finally:
-        _free(loaded)
+        loaded = None      # drop the run_one reference BEFORE gc so the VRAM is released
+        _gpu_gc()
 
     # ── head-restricted LoRA: head-count sweep (F1b) ─────────────────────────
     if "lora" in METHODS:
@@ -248,7 +250,8 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                                 )
                             _try("repatch", _rp)
                 finally:
-                    _free(edited)
+                    edited = None   # drop the reference BEFORE gc so the VRAM is released
+                    _gpu_gc()
             _try(f"lora_k{k}", _lora)
 
         # ── F1b head-count sweep artifact (refusal-flip + ΔPPL vs #heads) ──────

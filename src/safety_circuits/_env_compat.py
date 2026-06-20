@@ -4,32 +4,42 @@ Kaggle's image periodically downgrades torch while leaving torchaudio/torchvisio
 pinned to the old torch (ABI mismatch), and recent `transformers` EAGERLY imports
 torchaudio (via `loss_rnnt.py`) the moment TransformerLens does
 `from transformers import BertForPreTraining`. Depending on whether the broken
-extension is present or uninstalled, that surfaces as either an `undefined symbol`
+extension is present, absent, or ABI-mismatched, that surfaces as an `undefined symbol`
 OSError or a `ModuleNotFoundError` — both before any of our code runs.
 
-We use no audio/vision features, so the surgical fix is to tell transformers those
-optional extensions are unavailable *before* the eager import chain loads. This runs
-at package import, which precedes every `import transformer_lens` in our modules, so
-all entry points (orchestrators, notebooks, tests) are covered. No-op off Kaggle /
-when transformers isn't installed.
+Patching transformers' `is_*_available()` flags is unreliable (the value is captured
+into several namespaces before we get a chance). The robust fix is to make the bare
+`import torchaudio` / `import torchvision` simply succeed: if the real package can't be
+imported cleanly, register a forgiving stub in `sys.modules`. We use no audio/vision
+features, so a stub is harmless. Runs at package import, before every
+`import transformer_lens` in our modules → all entry points self-heal. No-op when the
+real package already imports fine.
 """
 
 from __future__ import annotations
 
+import sys
+import types
 
-def _disable_optional_extensions() -> None:
+
+def _stub_module(name: str) -> None:
+    """If `name` can't be imported cleanly, install a forgiving stub so any later
+    `import name` (e.g. transformers' eager `import torchaudio`) succeeds."""
     try:
-        from transformers.utils import import_utils as iu
-    except Exception:
-        return  # transformers not installed (e.g. local CPU test env) — nothing to do
+        __import__(name)
+        return  # real module imports fine — leave it alone
+    except BaseException:  # ModuleNotFoundError, or OSError from an ABI-mismatched .so
+        sys.modules.pop(name, None)  # drop any half-initialised entry
 
-    for name in ("torchaudio", "torchvision"):
-        flag = f"_{name}_available"
-        if hasattr(iu, flag):
-            setattr(iu, flag, False)
-        fn = f"is_{name}_available"
-        if hasattr(iu, fn):
-            setattr(iu, fn, (lambda: False))
+    from unittest.mock import MagicMock
+
+    mod = types.ModuleType(name)
+    mod.__path__ = []  # mark as a package so `import name.sub` is tolerated
+    # PEP 562: any attribute access returns a MagicMock, which nests and is callable
+    # indefinitely (covers e.g. `torchaudio.transforms.RNNTLoss(...)`).
+    mod.__getattr__ = lambda attr: MagicMock()
+    sys.modules[name] = mod
 
 
-_disable_optional_extensions()
+for _name in ("torchaudio", "torchvision"):
+    _stub_module(_name)

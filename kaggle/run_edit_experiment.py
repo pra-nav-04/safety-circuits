@@ -119,6 +119,10 @@ def _edit_cfg() -> EditConfig:
         kw["head_counts"] = tuple(int(x) for x in head_counts.split(",") if x.strip())
     if os.environ.get("SC_STEERING_LAYERS", "").strip():
         kw["steering_layers"] = os.environ["SC_STEERING_LAYERS"].strip()
+    if os.environ.get("SC_EDIT_MINIMAL_RANKS", "").strip():
+        kw["minimal_ranks"] = tuple(int(x) for x in os.environ["SC_EDIT_MINIMAL_RANKS"].split(",") if x.strip())
+    if os.environ.get("SC_EDIT_MINIMAL_STEPS", "").strip():
+        kw["minimal_steps"] = tuple(int(x) for x in os.environ["SC_EDIT_MINIMAL_STEPS"].split(",") if x.strip())
     return EditConfig(**kw)
 
 

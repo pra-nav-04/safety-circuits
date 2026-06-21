@@ -98,3 +98,50 @@ def plot_k_sweep(
     if save_to:
         fig.savefig(save_to, dpi=150)
     return fig
+
+
+def plot_scalpel_axis(points: list[dict], title: str = "Scalpel sharpness", save_to: str | None = None):
+    """Refusal-rate vs Δ-perplexity scatter overlaying the three refusal-removal methods —
+    the §9 headline figure ("scalpel sharpness").
+
+    `points` are dicts ``{method, label, dppl, refusal}`` where ``method`` ∈
+    {"baseline","lora","steering","ablation"}, ``dppl`` is Δ WikiText-2 perplexity (%),
+    ``refusal`` is the refusal rate (%), and ``label`` annotates the marker (e.g. "k=3").
+    The clean corner is bottom-left (low refusal AND ~0 ΔPPL); a clean edit lands there,
+    while blunt ablation / steering can only lower refusal by exploding perplexity.
+    The x-axis is symlog so both small (−15%) and catastrophic (×1000s%) ΔPPL fit.
+    """
+    import matplotlib.pyplot as plt
+
+    style = {  # method -> (color, marker, display name)
+        "baseline":  ("black",     "*", "baseline (no edit)"),
+        "lora":      ("tab:green", "o", "head-restricted LoRA"),
+        "steering":  ("tab:blue",  "s", "steering (directional)"),
+        "ablation":  ("tab:red",   "X", "blunt zero-ablation"),
+    }
+    fig, ax = plt.subplots(figsize=(7, 5))
+    seen = set()
+    for p in points:
+        color, marker, name = style.get(p["method"], ("grey", ".", p["method"]))
+        ax.scatter(p["dppl"], p["refusal"], c=color, marker=marker,
+                   s=160 if p["method"] in ("baseline", "ablation") else 90,
+                   edgecolors="k", linewidths=0.5, zorder=3,
+                   label=name if p["method"] not in seen else None)
+        seen.add(p["method"])
+        if p.get("label"):
+            ax.annotate(p["label"], (p["dppl"], p["refusal"]), fontsize=8,
+                        xytext=(4, 4), textcoords="offset points")
+
+    ax.set_xscale("symlog", linthresh=10)          # linear within ±10%, log beyond
+    ax.axvline(0, ls=":", color="grey", lw=1)
+    ax.set_xlabel("Δ WikiText-2 perplexity (%)  — capability cost →")
+    ax.set_ylabel("Refusal rate (%)")
+    ax.set_ylim(-5, 105)
+    ax.set_title(title)
+    ax.legend(loc="upper left", framealpha=0.9)
+    ax.text(0.02, 0.12, "← clean corner\n(refusal removed, capability kept)",
+            transform=ax.transAxes, fontsize=8, color="tab:green", va="bottom")
+    fig.tight_layout()
+    if save_to:
+        fig.savefig(save_to, dpi=150)
+    return fig

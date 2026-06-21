@@ -40,7 +40,7 @@ from safety_circuits.data import (
 from safety_circuits.editing import edit_and_load, load_via_port
 from safety_circuits.steering import compute_refusal_direction, make_steering_hooks, resolve_steering_layers
 from safety_circuits.edit_eval import evaluate_edited_model, repatch_after_edit
-from safety_circuits.analysis import head_heatmap, plot_heatmap, plot_k_sweep
+from safety_circuits.analysis import head_heatmap, plot_heatmap, plot_k_sweep, plot_scalpel_axis
 from safety_circuits.refusal import score_refusal
 
 
@@ -344,6 +344,38 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
         if base_ppl and r.get("perplexity"):
             r["perplexity_pct_change"] = 100.0 * (r["perplexity"] - base_ppl) / base_ppl
     pd.DataFrame(rows).to_csv(out / f"{model_key}_edit_summary.csv", index=False)
+
+    # ── headline figure: refusal vs ΔPPL across all three removal methods ────
+    def _scalpel():
+        pts = []
+        base_ref = next((r["refusal_rate"] for r in rows if r["label"] == "baseline"), None)
+        if base_ref is not None:
+            pts.append({"method": "baseline", "label": "base", "dppl": 0.0, "refusal": 100 * base_ref})
+        for r in rows:
+            lab = str(r["label"])
+            if lab.startswith("lora_k") and r.get("perplexity_pct_change") is not None:
+                pts.append({"method": "lora", "label": "k" + lab.split("lora_k")[1],
+                            "dppl": r["perplexity_pct_change"], "refusal": 100 * r["refusal_rate"]})
+        sp = out / f"{model_key}_edit_steering_sweep.csv"
+        if sp.exists():
+            for _, sr in pd.read_csv(sp).iterrows():
+                if pd.notna(sr.get("perplexity_pct_change")):
+                    pts.append({"method": "steering", "label": None,
+                                "dppl": float(sr["perplexity_pct_change"]),
+                                "refusal": 100 * float(sr["refusal_rate"])})
+        ab = HEADS_DIR / model_key / f"{model_key}_ablation.csv"
+        if ab.exists():
+            adf = pd.read_csv(ab)
+            if len(adf) and {"perplexity_pct_change", "refusal_rate_ablated"} <= set(adf.columns):
+                a0 = adf.iloc[0]
+                if pd.notna(a0.get("perplexity_pct_change")):
+                    pts.append({"method": "ablation", "label": "top-10 zero",
+                                "dppl": float(a0["perplexity_pct_change"]),
+                                "refusal": 100 * float(a0["refusal_rate_ablated"])})
+        if pts:
+            plot_scalpel_axis(pts, title=f"{spec.key}: refusal vs ΔPPL (scalpel sharpness)",
+                              save_to=str(out / f"{model_key}_scalpel_axis.png"))
+    _try("scalpel_plot", _scalpel)
 
     summary["status"] = "ok"
     summary["seconds"] = round(time.time() - t0, 1)

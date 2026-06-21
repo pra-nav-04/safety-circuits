@@ -116,18 +116,21 @@ def deep_eval(loaded: LoadedModel, prompts: list[str], categories: list[str | No
 class DirShiftRow:
     layer: int
     cosine: float        # cos(base refusal dir, edited refusal dir) — <1 ⇒ the edit rotated it
-    base_norm: float
-    edited_norm: float
+    base_norm: float     # ‖raw diff-of-means‖ on the base model (refusal-direction strength)
+    edited_norm: float   # ‖raw diff-of-means‖ on the edited model
+    norm_ratio: float    # edited/base — <1 ⇒ the edit weakened the refusal direction
 
 
 def refusal_direction_shift(base_dirs: dict, edited_loaded: LoadedModel,
                             harm: list[str], safe: list[str], layers: list[int]) -> list[dict]:
-    """How much did the edit move the refusal direction, per layer? Recomputes the
-    difference-of-means refusal direction on the **edited** model and compares it (cosine +
-    norm) to the **baseline** directions captured before editing (`base_dirs[layer]`, unit
-    vectors from `steering.compute_refusal_direction`). A cosine well below 1 at the edited
-    layers is the mechanistic signal that retraining *rotated* the head's refusal output —
-    and the per-layer cosine vector doubles as a forensic signature of an edited model."""
+    """How much did the edit move the refusal direction, per layer? `base_dirs[layer]` are the
+    **raw** (un-normalised) difference-of-means refusal directions captured on the baseline
+    model (`compute_refusal_direction(..., normalize=False)`); this recomputes them on the
+    **edited** model and reports:
+      - `cosine` — angle between base and edited directions; ≪1 ⇒ retraining *rotated* the
+        head's refusal output (mechanistic signal; also a forensic signature of an edit),
+      - `base_norm`/`edited_norm`/`norm_ratio` — the direction's *strength* and whether the
+        edit shrank it (ratio <1) or merely turned it (ratio ≈1, low cosine)."""
     import torch
 
     from .steering import compute_refusal_direction
@@ -137,11 +140,10 @@ def refusal_direction_shift(base_dirs: dict, edited_loaded: LoadedModel,
         bd = base_dirs.get(layer)
         if bd is None:
             continue
-        ed = compute_refusal_direction(edited_loaded, harm, safe, layer)
-        bd_u = bd / (bd.norm() + 1e-8)
-        ed_u = ed.to(bd.device) / (ed.norm() + 1e-8)
-        cos = float(torch.dot(bd_u.float(), ed_u.float()).item())
+        ed = compute_refusal_direction(edited_loaded, harm, safe, layer, normalize=False).to(bd.device)
+        bn, en = float(bd.norm()), float(ed.norm())
+        cos = float(torch.dot((bd / (bn + 1e-8)).float(), (ed / (en + 1e-8)).float()).item())
         rows.append(DirShiftRow(layer=layer, cosine=round(cos, 4),
-                                base_norm=round(float(bd.norm()), 4),
-                                edited_norm=round(float(ed.norm()), 4)).__dict__)
+                                base_norm=round(bn, 4), edited_norm=round(en, 4),
+                                norm_ratio=round(en / (bn + 1e-8), 4)).__dict__)
     return rows

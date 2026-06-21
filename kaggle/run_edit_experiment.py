@@ -247,8 +247,8 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
         # T2.6/2.7: baseline per-layer refusal directions (compared on the edited model later)
         if DO_DIRSHIFT:
             def _basedirs():
-                for L in edit_layers:
-                    base_dirs[L] = compute_refusal_direction(loaded, harm_txt, safe_txt, L)
+                for L in edit_layers:  # raw (un-normalised) so the shift diagnostic can report strength
+                    base_dirs[L] = compute_refusal_direction(loaded, harm_txt, safe_txt, L, normalize=False)
                 log(f"[{model_key}] captured baseline refusal dirs @ layers {edit_layers}")
             _try("dirshift_baseline", _basedirs)
 

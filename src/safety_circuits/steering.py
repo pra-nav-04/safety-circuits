@@ -58,10 +58,14 @@ def compute_refusal_direction(
     harm_prompts: list[str],
     safe_prompts: list[str],
     layer: int,
+    normalize: bool = True,
 ) -> torch.Tensor:
     """Difference-of-means refusal direction at `resid_post[layer]`, last token.
 
     Returns a unit vector `[d_model]` pointing from benign → refusing activations.
+    Pass `normalize=False` to get the *raw* difference-of-means — its norm measures how
+    strong the refusal direction is (used by the direction-shift diagnostic to see whether
+    an edit shrank it; steering callers normalize internally either way).
     """
     from transformer_lens.utils import get_act_name
 
@@ -80,7 +84,7 @@ def compute_refusal_direction(
     mu_harm = _mean_last(harm_prompts, "dir:harm")
     mu_safe = _mean_last(safe_prompts, "dir:safe")
     direction = mu_harm - mu_safe
-    return direction / (direction.norm() + 1e-8)
+    return direction / (direction.norm() + 1e-8) if normalize else direction
 
 
 def make_steering_hooks(direction: torch.Tensor, layers: list[int], coeff: float = 1.0):

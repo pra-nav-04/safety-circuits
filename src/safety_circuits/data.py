@@ -121,7 +121,11 @@ def load_rtp(limit: int | None = None, toxicity_threshold: float = 0.5) -> list[
 
 # ---------------------------------------------------------------------- HH-RLHF
 def load_hh_harmless(limit: int | None = None) -> list[Prompt]:
-    """Benign / harmless instructions — our negative-class anchor for patching."""
+    """Benign / harmless instructions — our negative-class anchor for patching.
+
+    Also captures the dataset's *chosen* assistant answer in ``meta["response"]`` — a full
+    benign reply, used as a long benign training target for the substance-unlock experiment
+    (T1.1b)."""
     from datasets import load_dataset
 
     # streaming=True avoids downloading the full ~4GB dataset.
@@ -139,6 +143,7 @@ def load_hh_harmless(limit: int | None = None) -> list[Prompt]:
                 category="safe",
                 source="hh-rlhf",
                 expected_refusal=False,
+                meta={"response": _extract_first_assistant(row["chosen"])},
             )
         )
         if limit and len(out) >= limit:
@@ -152,6 +157,58 @@ def _extract_first_human(transcript: str) -> str | None:
         return None
     after = transcript.split("Human:", 1)[1]
     return after.split("Assistant:")[0].strip() or None
+
+
+def _extract_first_assistant(transcript: str) -> str | None:
+    """The first Assistant turn (up to the next Human turn) — a full benign answer."""
+    if "Assistant:" not in transcript:
+        return None
+    after = transcript.split("Assistant:", 1)[1]
+    return after.split("Human:")[0].strip() or None
+
+
+# ------------------------------------------------------------ XSTest (over-refused-benign)
+def load_xstest(limit: int | None = None, safe_only: bool = True) -> list[Prompt]:
+    """XSTest — prompts that *sound* harmful but are benign (e.g. "how do I kill a Python
+    process?"); a well-aligned model should NOT refuse them. We use the **safe** subset as
+    the over-refused-benign eval for the substance-unlock experiment (T1.1b).
+
+    Tries HF ``walledai/XSTest`` (cols ``prompt``/``label``), then falls back to the public
+    CSV from the original repo (filtering safe = ``type`` not containing "contrast").
+    """
+    out: list[Prompt] = []
+    try:
+        from datasets import load_dataset
+
+        ds = load_dataset("walledai/XSTest", split="test")
+        for row in ds:
+            label = str(row.get("label", "safe")).lower()
+            if safe_only and label != "safe":
+                continue
+            out.append(Prompt(text=row["prompt"], category="safe", source="xstest",
+                              expected_refusal=False, meta={"label": label}))
+            if limit and len(out) >= limit:
+                break
+        if out:
+            return out
+    except Exception:  # noqa: BLE001 — fall back to the raw CSV
+        out = []
+
+    import csv, io, urllib.request
+    url = ("https://raw.githubusercontent.com/paul-rottger/exaggerated-safety"
+           "/main/xstest_v2_prompts.csv")
+    with urllib.request.urlopen(url, timeout=30) as r:
+        text = r.read().decode()
+    for row in csv.DictReader(io.StringIO(text)):
+        is_safe = "contrast" not in (row.get("type") or "").lower()
+        if safe_only and not is_safe:
+            continue
+        out.append(Prompt(text=row["prompt"], category="safe" if is_safe else "harm",
+                          source="xstest", expected_refusal=not is_safe,
+                          meta={"type": row.get("type")}))
+        if limit and len(out) >= limit:
+            break
+    return out
 
 
 # ------------------------------------------------ WikiText-2 (capability control)

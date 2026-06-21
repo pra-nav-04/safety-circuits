@@ -257,6 +257,13 @@ small, **open-weight** models in an academic setting: results reported in aggreg
 jailbroken weights or attack artifacts released**, with a responsible-disclosure posture. (Belongs in the
 paper's ethics statement.)
 
+**Explicit boundary (decided 2026-06-22):** we measure refusal *removal* (the model stops refusing) and,
+where substance matters, we test it **only on benign content** (T1.1b: over-refused-benign XSTest prompts +
+HH-RLHF benign answers). We **do not train on, optimise for, or elicit full harmful generation** — producing
+operational harmful content (the AdvBench/HarmBench payloads include CBRN topics) is out of scope and not
+pursued. The "is substance unlockable?" question is answered mechanistically (target-length controls
+continuation, shown benignly), not by generating harmful text.
+
 ### Sequence & outcome (all 9 models executed 2026-06-21)
 
 | Direction | Tests | Outcome |
@@ -276,6 +283,7 @@ its own per-model artifact under `results/editing/<model>/`.
 | # | Direction | Question | Flag → artifact |
 |---|---|---|---|
 | **T1.1** | Generalization of the edit | Does the edited model produce harmful *content*, or just the "Sure, here is" opener? Long-form gen + per-HarmBench-category + toxicity-substance score. | `SC_DO_GENERALIZATION` → `<m>_edit_generalization.csv` |
+| **T1.1b** | Substance unlock (**weapon-free**) | Is the opener-stop a *target-length artifact*? Train benign (instruction→full benign answer) at short vs long target length; eval on over-refused-benign (XSTest safe) + HH benign. **No harmful content trained or generated.** | `SC_DO_BENIGN_SUBSTANCE` → `<m>_edit_benign_substance.csv` |
 | **T1.2** | Minimal clean edit | What is the *smallest* edit (rank × steps) that still flips refusal cleanly? | `SC_DO_MINIMAL_SWEEP` → `<m>_edit_minimal_sweep.csv` |
 | **T1.3** | Gemma-1 / MLP probe | Why does the oldest, early-circuit model resist clean editing? Allow MLP (not just head) targets via `SC_EDIT_TARGETS=gate_proj,up_proj,down_proj`. | (reuses summary; MLP target in `lora.py`) |
 | **T1.4** | Steering best shot | Give directional ablation a fair midpoint (wider default sweep incl. low coeffs + a `frac0.4-0.8` window). | `SC_STEERING_SWEEP*` → `<m>_edit_steering_sweep.csv` |
@@ -286,6 +294,11 @@ its own per-model artifact under `results/editing/<model>/`.
 > - **Multi-axis safety** — do deception / bias / PII / sycophancy have localized, editable circuits too?
 > - **SAE / neuron-level editing** — target interpretable SAE features or specific MLP neurons (not just
 >   whole heads/MLPs) as the edit handle.
+> - **Safety hardening (defensive)** — can refusal be *trained to be distributed/redundant* across many
+>   heads so the head-restricted edit no longer removes it? Turns the red-team result into a defense
+>   (extends the T2.5 re-patch round-trip from "repair after" to "resist in the first place").
+> - **Edit detection / forensics** — a classifier over the per-layer refusal-direction shift signature
+>   (`*_edit_direction_shift.csv`) to flag a safety-edited / jailbroken open-weight model.
 > - **Same-architecture transfer (F1c, redone)** — a genuine adapter-transfer test needs two fine-tunes of
 >   *one* base (well-defined merge); infeasible on the current 9-checkpoint roster (every arch differs).
 > - **Scale > 4B** parameters (compute-bound on a single T4).

@@ -210,5 +210,8 @@ editing under every method. Headline visual per model: `results/editing/<model>/
   artifact (see `RESEARCH_PLAN.md` §9 "Ongoing extensions"): generalization of the edit (does it produce
   content or just the opener?) → `*_edit_generalization.csv`; minimal clean edit (smallest rank×steps) →
   `*_edit_minimal_sweep.csv`; safety re-patch round-trip → `*_edit_roundtrip.csv`; refusal-direction shift
-  (mechanism + forensics) → `*_edit_direction_shift.csv`; Gemma-1 MLP-target probe (`SC_EDIT_TARGETS`).
+  (mechanism + forensics) → `*_edit_direction_shift.csv`; Gemma-1 MLP-target probe (`SC_EDIT_TARGETS`);
+  **substance unlock (weapon-free)** → `*_edit_benign_substance.csv` (does longer-target training turn the
+  refusal-opener into full *benign* answers on over-refused XSTest prompts? — tests the opener-stop mechanism
+  without eliciting harmful content; see `RESEARCH_PLAN.md` §9 ethics boundary).
   Findings land here as they complete.

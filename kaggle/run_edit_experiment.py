@@ -35,12 +35,12 @@ from safety_circuits.config import MODELS, RESULTS_DIR, EditConfig
 from safety_circuits.ablation import HeadRef
 from safety_circuits.data import (
     load_advbench, load_hh_harmless, build_matched_pairs, load_wikitext2, load_harmbench,
-    save_jsonl,
+    load_xstest, save_jsonl,
 )
 from safety_circuits.editing import edit_and_load, edit_roundtrip_and_load, load_via_port
 from safety_circuits.steering import compute_refusal_direction, make_steering_hooks, resolve_steering_layers
 from safety_circuits.edit_eval import (
-    deep_eval, evaluate_edited_model, refusal_direction_shift, repatch_after_edit,
+    deep_eval, evaluate_edited_model, is_substantive, refusal_direction_shift, repatch_after_edit,
 )
 from safety_circuits.analysis import head_heatmap, plot_heatmap, plot_k_sweep, plot_scalpel_axis
 from safety_circuits.refusal import score_refusal
@@ -63,6 +63,7 @@ DO_GENERALIZATION = os.environ.get("SC_DO_GENERALIZATION", "0") == "1"  # T1.1 l
 DO_MINIMAL_SWEEP  = os.environ.get("SC_DO_MINIMAL_SWEEP", "0") == "1"   # T1.2 rank×steps minimal-edit grid
 DO_DIRSHIFT       = os.environ.get("SC_DO_DIRSHIFT", "0") == "1"        # T2.6/2.7 refusal-direction shift
 DO_HARDENING      = os.environ.get("SC_DO_HARDENING", "0") == "1"       # T2.5 comply→refuse re-patch round-trip
+DO_BENIGN_SUBST   = os.environ.get("SC_DO_BENIGN_SUBSTANCE", "0") == "1" # T1.1b benign substance-unlock (weapon-free)
 
 # Steering sweep grid — one pass tries every (extraction-frac × ablation-set:coeff) combo,
 # records refusal+ppl for each in <model>_edit_steering_sweep.csv, and promotes the best
@@ -123,6 +124,8 @@ def _edit_cfg() -> EditConfig:
         kw["minimal_ranks"] = tuple(int(x) for x in os.environ["SC_EDIT_MINIMAL_RANKS"].split(",") if x.strip())
     if os.environ.get("SC_EDIT_MINIMAL_STEPS", "").strip():
         kw["minimal_steps"] = tuple(int(x) for x in os.environ["SC_EDIT_MINIMAL_STEPS"].split(",") if x.strip())
+    if os.environ.get("SC_EDIT_MAX_TARGET_TOKENS", "").strip():
+        kw["benign_target_tokens"] = int(os.environ["SC_EDIT_MAX_TARGET_TOKENS"])
     return EditConfig(**kw)
 
 
@@ -449,6 +452,61 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 ed = None
                 _gpu_gc()
         _try("hardening", _hard)
+
+    # ── T1.1b benign substance-unlock (opt-in, WEAPON-FREE) ──────────────────
+    # Is the "stops at the opener" behaviour a training-target-length artifact? Train the
+    # safety heads to comply on BENIGN (instruction → full benign answer) data at two target
+    # lengths, eval on over-refused-benign prompts (XSTest safe) + held-out HH benign. No
+    # harmful content is trained on or generated — by design (see RESEARCH_PLAN §9 ethics).
+    if DO_BENIGN_SUBST:
+        import dataclasses
+        pk = min(TOP_K, len(heads_all))
+
+        def _benign():
+            bpairs = [(p.text, (p.meta or {}).get("response") or "") for p in safe]
+            bpairs = [pr for pr in bpairs if pr[1]][:max(N_PAIRS // 2, 8)]
+            try:
+                xs = [p.text for p in load_xstest(limit=N_PAIRS, safe_only=True)]
+            except Exception as e:  # noqa: BLE001
+                xs = []
+                summary.setdefault("addon_errors", {})["xstest"] = repr(e)
+            hh_eval = [p.text for p in safe[N_PAIRS:N_PAIRS + 15]]
+            prompts, cats = xs + hh_eval, ["xstest"] * len(xs) + ["hh"] * len(hh_eval)
+            if not prompts or not bpairs:
+                log(f"[{model_key}] benign-substance: no prompts/pairs; skipping")
+                return
+
+            rows_b = []
+            base_m = load_via_port(spec, device=DEVICE)   # re-port baseline (earlier one freed)
+            try:
+                rows_b += deep_eval(base_m, prompts, cats, label="baseline",
+                                    max_new_tokens=cfg.benign_target_tokens)
+            finally:
+                base_m = None
+                _gpu_gc()
+
+            for tag, mtt in [("benign_short", 24), ("benign_long", cfg.benign_target_tokens)]:
+                c2 = dataclasses.replace(cfg, max_target_tokens=mtt)
+                log(f"[{model_key}] benign-substance edit {tag} (max_target_tokens={mtt}, k={pk})")
+                ed = edit_and_load(spec, heads_all[:pk], c2, bpairs, device=DEVICE, log=log)
+                try:
+                    rows_b += deep_eval(ed, prompts, cats, label=tag,
+                                        max_new_tokens=cfg.benign_target_tokens)
+                finally:
+                    ed = None
+                    _gpu_gc()
+
+            df = pd.DataFrame(rows_b)
+            df["substantive"] = df.apply(lambda r: is_substantive(r.to_dict()), axis=1)
+            df.to_csv(out / f"{model_key}_edit_benign_substance.csv", index=False)
+            agg = (df.groupby(["label", "category"])
+                     .agg(refused=("refused", "mean"), substantive=("substantive", "mean"),
+                          mean_len=("gen_len_chars", "mean"), n=("refused", "size")).reset_index())
+            agg.to_csv(out / f"{model_key}_edit_benign_substance_agg.csv", index=False)
+            for _, r in agg.iterrows():
+                log(f"[{model_key}] benign {r['label']}/{r['category']}: refused={r['refused']:.0%} "
+                    f"substantive={r['substantive']:.0%} len={r['mean_len']:.0f}")
+        _try("benign_substance", _benign)
 
     # ── combined summary (baseline / steering / lora_k*) with ΔPPL ───────────
     base_ppl = next((r["perplexity"] for r in rows if r["label"] == "baseline"), None)

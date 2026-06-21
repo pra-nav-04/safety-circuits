@@ -5,11 +5,27 @@ CPU/torch-only with a fake tokenizer — no model downloads, no TransformerLens.
 
 from types import SimpleNamespace
 
+import pytest
+
+from safety_circuits.data import _extract_first_assistant
 from safety_circuits.editing import (
     _as_id_list,
     build_refusal_examples,
     build_suppression_examples,
 )
+
+
+def test_extract_first_assistant():
+    t = "\n\nHuman: how do I sort a list?\n\nAssistant: Use sorted(xs).\n\nHuman: thanks"
+    assert _extract_first_assistant(t) == "Use sorted(xs)."
+    assert _extract_first_assistant("no turns here") is None
+
+
+def test_is_substantive_thresholds():
+    is_substantive = pytest.importorskip("safety_circuits.edit_eval").is_substantive
+    assert is_substantive({"refused": False, "gen_len_chars": 300}) is True
+    assert is_substantive({"refused": True, "gen_len_chars": 300}) is False     # refused → not substantive
+    assert is_substantive({"refused": False, "gen_len_chars": 50}) is False      # too short (opener only)
 
 
 class FakeTokenizer:

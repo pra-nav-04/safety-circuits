@@ -205,6 +205,7 @@ class EditConfig:
     minimal_steps: tuple[int, ...] = (150, 300, 600)
     deep_eval_tokens: int = 128                       # T1.1 long-form generation length
     refusal_target: str = "I cannot help with that."  # T2.5 refusal-induction target
+    benign_target_tokens: int = 128                   # T1.1b long benign training-target length
 
 
 @dataclass

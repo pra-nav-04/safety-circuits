@@ -209,6 +209,16 @@ a single sub-group of MLP neurons — as the **only** trainable target.
     early-layer ones need more).
   - **F1c (transfer, stretch):** an adapter trained on one model's safety heads transfers to / informs a
     **sibling generation** in the same family.
+    - **Infeasible as a literal weight transfer on this roster (not pursued).** Merging adapter `A`'s
+      low-rank delta into model `B` requires shape-compatible projections *and* aligned head indices.
+      Neither holds here: (1) no two of the 9 checkpoints share an architecture — hidden sizes differ
+      across every generation (e.g. Qwen2.5-1.5B 1536 vs Qwen3-1.7B 2048; Gemma3-1b 1152 / Gemma2-2b 2304 /
+      Gemma1-2b 2048; Llama-3.2-1B 2048 vs 3B 3072), so `A`'s `(r×in)`/`(out×r)` matrices cannot be added to
+      `B`; (2) **Finding C (circuit migration)** means the safety heads sit at *different* `(layer, head)`
+      indices per generation, so even a same-shape delta would land on the wrong heads. A well-defined merge
+      transfer would need a **same-architecture pair** (two fine-tunes of one base) — absent from the roster.
+      The defensible, retained claim is instead that the **editing *method* generalizes**: running F1 on all
+      9 shows head-restricted LoRA + the depth→#heads law (F1b) hold across families/generations.
 
 ### F2 — forward the generational sweep (newer models, same families)
 Add the **newest available checkpoints** in each studied family (Qwen, Gemma, Llama), subject to the same
@@ -236,10 +246,11 @@ paper's ethics statement.)
 
 | Direction | Tests | Cost | Priority |
 |---|---|---|---|
-| F2 — newer models, same families | Do H1/H2 · B · C hold on latest releases? + new targets | low (existing pipeline) | **1** |
-| F1 — head-restricted LoRA transplant | Is the localized circuit a cleanly *editable* switch / jailbreakable? | med (LoRA train, fits T4) | **2 (core)** |
-| Steering-vector baseline | Modularity without training (scalpel-sharpness axis) | low (fwd-pass) | 3 |
-| F1c — cross-generation transfer | Does one model's safety-head adapter transfer? | med | stretch |
+| F1 — head-restricted LoRA transplant | Is the localized circuit a cleanly *editable* switch / jailbreakable? | med (LoRA train, fits T4) | **1 (core, done on gemma3-1b)** |
+| Steering-vector baseline (auto sweep) | Modularity without training (scalpel-sharpness axis) | low (fwd-pass) | **2** |
+| F1b — depth→#heads law across all 9 | Does the head-count flip track circuit depth across generations? | med | **3 (the 9-model rerun)** |
+| F2 — newer models, same families | Do H1/H2 · B · C hold on latest releases? | low | **dropped** — Qwen3/Gemma3 already in roster; nothing newer/smaller is TL-supported |
+| F1c — cross-generation transfer | Does one model's safety-head adapter transfer? | — | **infeasible on this roster** (shape mismatch + circuit migration; needs a same-arch pair) |
 
 > **Longer-horizon (beyond this phase):** scale **> 4B** parameters; **multi-axis** safety (deception,
 > bias, PII); **cross-lingual** refusal circuits — carried in the paper's Discussion as future work.

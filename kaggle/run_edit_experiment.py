@@ -80,7 +80,7 @@ STEER_GRID = _parse_steer_grid()
 HEADS_DIR   = pathlib.Path(os.environ.get("SC_HEADS_DIR", str(RESULTS_DIR / "kaggle_neo")))
 
 WORK     = pathlib.Path(os.environ.get("SC_OUT", "/kaggle/working"))
-OUT_ROOT = WORK / "results_edit"
+OUT_ROOT = WORK / "editing"   # downloaded zip extracts to editing/<model>/ → repo results/editing/
 OUT_ROOT.mkdir(parents=True, exist_ok=True)
 DEVICE   = "cuda" if torch.cuda.is_available() else "cpu"
 START    = time.time()
@@ -429,11 +429,11 @@ def main() -> None:
             log_path.write_text("\n".join(lines) + "\n")
             summaries.append({"model": k, "status": "failed", "error": repr(e)})
         summ_path.write_text(json.dumps(summaries, indent=2, default=str))
-        _zip_results(WORK / "safety_circuits_edit_results.zip")
+        _zip_results(WORK / "safety_circuits_editing_results.zip")
 
     ok = sum(s.get("status") == "ok" for s in summaries)
     log(f"ALL DONE — {ok}/{len(summaries)} models ok. "
-        f"Download safety_circuits_edit_results.zip (or results_edit/<model>/).")
+        f"Download safety_circuits_editing_results.zip (or editing/<model>/).")
 
 
 main()

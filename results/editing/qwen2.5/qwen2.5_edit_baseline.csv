@@ -1,0 +1,2 @@
+label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak
+baseline,1.0,0.94,18.196788787841797,25,50

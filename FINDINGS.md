@@ -116,6 +116,69 @@ is more distributed/redundant here. The 1B places its top head mid-network (L9);
 
 ---
 
+## Editing extension (§9): from *mapping* the circuit to *editing* it
+
+The mapping study (A–D) could only *delete* the localized heads (zero-ablation), which removes refusal
+only by breaking the model (Finding A). The extension instead **retrains** them: a **head-restricted
+LoRA** (low-rank adapter masked to *only* the localized safety heads' `q/k/v/o_proj` slices, GQA-aware),
+trained on an affirmative-continuation objective, merged back into just those heads. A no-train
+**steering-vector** baseline (Arditi-style directional ablation, swept over extraction layer × ablation
+set × coefficient) is the midpoint. All evaluation reuses the existing harness; the edited HF model is
+ported back into TransformerLens via `from_pretrained_no_processing`, and **the baseline is recomputed
+through that same port** so every comparison is apples-to-apples.
+*(Config: LoRA rank 16 / 600 steps / lr 5e-4; N=25 held-out harmful eval prompts, 50 HarmBench jailbreak
+prompts, WikiText-2 perplexity, seed 0, T4. Artifacts in `results/editing/<model>/`.)*
+
+**E — Refusal is *not modular under deletion, but it is editable under retraining*.** Across all 9 models,
+**head-restricted LoRA drives refusal (and HarmBench-jailbreak refusal) to 0%**, and on **8/9** it does so
+at **small perplexity cost** (≤ ~16%, often ≈0 or *negative*) — exactly where blunt ablation gave gibberish
+(Qwen2/2.5/3: ablation PPL ×128–×61,000 → **LoRA +1–2%**). The no-train **steering baseline never cleanly
+removes refusal on any model** (best coherent refusal 32–92%; the only combos reaching ~0% explode PPL).
+So the three interventions form a **scalpel-sharpness axis**: blunt ablation (breaks the model / can't
+remove) → steering (can't cleanly remove) → **head-restricted LoRA (uniquely reaches the "clean corner":
+0% refusal at ≈0 ΔPPL)**. This refines Finding A: refusal is *load-bearing* (you can't excise it) yet
+*re-trainable in place* (you can repurpose the same heads to comply). It is also, by construction, a
+**targeted jailbreak produced by retraining only the safety heads** — reported in aggregate, no weights
+released.
+
+### Cross-model editing table
+
+| Model | top-head depth | base refusal | **blunt zero-abl** (refusal / ΔPPL) | **steering** best-coherent (refusal / ΔPPL) | **LoRA** →0% at k | **LoRA cleanest ΔPPL @ 0%** |
+|---|---|---|---|---|---|---|
+| **Gemma1-2B** | L0 / .00 | 88% | 72% / +23% | 60% / −0.2% | k1 | **+82% → +2139% (BREAKS)** |
+| **Gemma2-2B** | L13 / .50 | 96% | 88% / +24% | 76% / +1.8% | k1 | **+2.8%** (k5) |
+| **Gemma3-1B** | L24 / .92 | 44% | 0% / +217% | 32% / +3% | k3 | **−16%** (k5) |
+| **Qwen1.5-1.8B** | L12 / .50 | 80% | 24% / +1% | 32% / +0.2% | k1 | +11.5% (k10) |
+| **Qwen2-1.5B** | L0 / .00 | 96% | 0% / ×10,600 | 56% / −0.8% | k1 | **≈0%** (k10) |
+| **Qwen2.5-1.5B** | L0 / .00 | 100% | 0% / ×61,000 | 72% / +2% | k3 | **+1.9%** (k3) |
+| **Qwen3-1.7B** | L0 / .00 | 88% | 0% / ×128 | 48% / +6.5% | k3 | **+1.4%** (k10) |
+| **Llama-3.2-1B** | L9 / .56 | 96% | 92% / +23% | 92% / +0.01% | k1 | **+0.45%** (k1) |
+| **Llama-3.2-3B** | L0 / .56 (hybrid) | 88% | 44% / +5% | 76% / +1.9% | k3 | **+0.69%** (k5) |
+
+> **Read E off this table:** the **LoRA** columns hit **0% refusal on all 9** at near-zero ΔPPL on 8 of
+> them — including the four Qwen/Gemma3 models that ablation could only "remove" by blowing PPL up ×100–
+> ×61,000. The **steering** column never reaches 0% while staying coherent. The **ablation** column is
+> the mapping study's coupling (remove ⇒ break, or don't remove).
+
+### Editing hypothesis scorecard
+
+| Hypothesis | Verdict |
+|---|---|
+| **F1a — clean edit** (head-LoRA flips refusal at small ΔPPL) | ✅ **Confirmed 8/9.** Refusal & jailbreak → 0% on 9/9; small ΔPPL on 8/9. **Exception: Gemma1-2B** removes refusal only with large ΔPPL (+82%). |
+| **F1b — depth→#heads law** (later circuits edit with fewer heads) | 🟡 **Not resolved.** Refusal flips with very few heads everywhere (k=1 on 5/9, k=3 on 4/9), with no monotone depth relationship (early-L0 Qwen2 flips at k1; late-L24 Gemma3 at k3). The informative axis is **ΔPPL cost**, not head count. |
+| **F1c — cross-generation transfer** | **Infeasible on this roster** (no two checkpoints share an architecture; circuits migrate). Not pursued — see `RESEARCH_PLAN.md` §9. |
+| **Steering baseline** (directional ablation removes refusal cleanly?) | ❌ **No (0/9).** Best coherent refusal 32–92%; clean removal needs LoRA. |
+
+**Generational editability gradient (Gemma, ties E ↔ Finding C).** Within Gemma the *clean-edit cost*
+tracks circuit depth/generation in lockstep with the location migration: **g1 (L0) +82% → g2 (L13) +2.8%
+→ g3 (L24) −16%.** Editability improves as the circuit moves later/newer — the editing analogue of
+Finding B. It is **not universal across families**, though: Qwen2/2.5/3 have early (L0) circuits yet LoRA
+edits them cleanly (+1–2%) *even though ablation destroys them* (×128–×61,000) — LoRA "rescues" early-layer
+circuits that ablation cannot touch. The lone hold-out is **Gemma1-2B** (oldest, L0), which resists clean
+editing under every method. Headline visual per model: `results/editing/<model>/<model>_scalpel_axis.png`.
+
+---
+
 ## Method notes & caveats
 
 - **Capability control is essential.** Without the WikiText-2 perplexity check, every "refusal → 0%"
@@ -137,7 +200,11 @@ is more distributed/redundant here. The 1B places its top head mid-network (L9);
   `OFFICIAL_MODEL_NAMES`; load raises `ValueError`. (Gemma-4 also unsupported + multimodal.)
 
 ## What's next
-- Build the paper's results section + figures around Findings A–D (the generational location-migration
-  figure — Gemma L0→L13→L24 — and the refusal-removal-vs-ΔPPL coupling scatter are the headline visuals).
+- Build the paper's results section + figures around Findings A–E: the generational location-migration
+  figure (Gemma L0→L13→L24), the refusal-removal-vs-ΔPPL coupling scatter (mapping), and the **scalpel-axis
+  scatter** (editing — `*_scalpel_axis.png`) as the §9 headline. Finding E is the punchline: refusal is not
+  modular under *deletion* but is editable under *retraining*.
 - Optional: Llama-3B higher-K ablation (does refusal fully drop past K=10?); 50-prompt human metric audit
-  (`notebooks/06_metric_audit.ipynb`) for the methodology section.
+  (`notebooks/06_metric_audit.ipynb`) for the methodology section; finer LoRA (rank/steps/lr) ablation to
+  pin the *minimal* clean edit, and a re-tuned steering sweep on the two models where steering came closest
+  (Qwen1.5, Gemma3) to sharpen the axis midpoint.

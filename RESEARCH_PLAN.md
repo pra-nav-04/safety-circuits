@@ -175,6 +175,21 @@ conscious departure from the read-only stance of the main study, scoped to the e
 
 ## 9. Future research — from *mapping* the circuit to *editing* it
 
+> **EXECUTED (2026-06-21), all 9 models — verdicts.** Full results + table in `FINDINGS.md` ("Editing
+> extension"); per-model artifacts in `results/editing/<model>/`.
+> - **F1a (clean edit): ✅ confirmed 8/9.** Head-restricted LoRA drives refusal **and** HarmBench-jailbreak
+>   refusal → **0% on 9/9** at **small ΔPPL on 8/9** (often ≈0 or negative) — including the four models where
+>   blunt ablation only "removed" refusal by exploding PPL ×128–×61,000 (Qwen2/2.5/3) or ×3 (Gemma3).
+>   **Exception: Gemma1-2B** (oldest, L0 circuit) removes refusal only with large ΔPPL (+82%).
+> - **Generational editability gradient (new):** within Gemma the clean-edit cost tracks the circuit's depth
+>   migration — **g1 (L0) +82% → g2 (L13) +2.8% → g3 (L24) −16%** — the editing analogue of Finding B.
+> - **Steering baseline: ❌ never cleanly removes refusal (0/9)** — best coherent refusal 32–92%; the only
+>   combos reaching ~0% blow up PPL. Confirms the **scalpel-sharpness axis**: blunt ablation → steering →
+>   **head-restricted LoRA is the only intervention that reaches the clean corner.**
+> - **F1b (depth→#heads law): 🟡 not resolved** at this granularity — refusal flips with very few heads
+>   everywhere (k=1 on 5/9, k=3 on 4/9), no monotone depth relationship; the informative axis is ΔPPL cost.
+> - **Headline:** refusal is *not modular under deletion* but *editable under retraining* — the core §9 claim.
+
 > **Framing.** The midterm result is *refusal is concentrated but not modular* — but that verdict was
 > reached with **blunt ablation** (zeroing whole heads), which could not *remove* refusal without
 > catastrophic capability collapse (Finding A). The extension **flips the question**: instead of crudely
@@ -242,15 +257,15 @@ small, **open-weight** models in an academic setting: results reported in aggreg
 jailbroken weights or attack artifacts released**, with a responsible-disclosure posture. (Belongs in the
 paper's ethics statement.)
 
-### Indicative sequence & priority
+### Sequence & outcome (all 9 models executed 2026-06-21)
 
-| Direction | Tests | Cost | Priority |
-|---|---|---|---|
-| F1 — head-restricted LoRA transplant | Is the localized circuit a cleanly *editable* switch / jailbreakable? | med (LoRA train, fits T4) | **1 (core, done on gemma3-1b)** |
-| Steering-vector baseline (auto sweep) | Modularity without training (scalpel-sharpness axis) | low (fwd-pass) | **2** |
-| F1b — depth→#heads law across all 9 | Does the head-count flip track circuit depth across generations? | med | **3 (the 9-model rerun)** |
-| F2 — newer models, same families | Do H1/H2 · B · C hold on latest releases? | low | **dropped** — Qwen3/Gemma3 already in roster; nothing newer/smaller is TL-supported |
-| F1c — cross-generation transfer | Does one model's safety-head adapter transfer? | — | **infeasible on this roster** (shape mismatch + circuit migration; needs a same-arch pair) |
+| Direction | Tests | Outcome |
+|---|---|---|
+| F1a — head-restricted LoRA transplant | Is the localized circuit a cleanly *editable* switch / jailbreakable? | ✅ **done, 9/9** — refusal & jailbreak → 0% on all; clean (small ΔPPL) on 8/9 (Gemma1-2B the exception) |
+| Steering-vector baseline (auto sweep) | Modularity without training (scalpel-sharpness axis) | ✅ **done** — never cleanly removes (0/9); confirms LoRA is the only clean intervention |
+| F1b — depth→#heads law across all 9 | Does the head-count flip track circuit depth? | 🟡 **done, not resolved** — flips with ≤3 heads everywhere; ΔPPL cost is the informative axis |
+| F2 — newer models, same families | Do H1/H2 · B · C hold on latest releases? | **dropped** — Qwen3/Gemma3 already in roster; nothing newer/smaller is TL-supported |
+| F1c — cross-generation transfer | Does one model's safety-head adapter transfer? | **infeasible on this roster** (shape mismatch + circuit migration; needs a same-arch pair) |
 
 > **Longer-horizon (beyond this phase):** scale **> 4B** parameters; **multi-axis** safety (deception,
 > bias, PII); **cross-lingual** refusal circuits — carried in the paper's Discussion as future work.

@@ -103,8 +103,13 @@ def _fake_hf_model():
         attn.k_proj = nn.Linear(8, 6)
         attn.v_proj = nn.Linear(8, 6)
         attn.o_proj = nn.Linear(12, 8)
+        mlp = nn.Module()
+        mlp.gate_proj = nn.Linear(8, 16)
+        mlp.up_proj = nn.Linear(8, 16)
+        mlp.down_proj = nn.Linear(16, 8)
         layer = nn.Module()
         layer.self_attn = attn
+        layer.mlp = mlp
         return layer
 
     inner = nn.Module()
@@ -134,6 +139,30 @@ def test_inject_targets_only_safety_layers():
     # only LoRA params are trainable
     trainable = {n for n, p in model.named_parameters() if p.requires_grad}
     assert trainable and all("lora_" in n for n in trainable)
+
+
+def test_full_role_mask_is_dense():
+    # role="full" (MLP target) → unrestricted LoRA: delta is dense (no head masking)
+    base = nn.Linear(8, 16)
+    ad = HeadMaskedLoRALinear(base, role="full", heads=[0], info=INFO, rank=2, alpha=2)
+    _fill(ad)
+    dw = ad.delta_weight()
+    assert (dw.abs().sum(dim=1) > 0).all()    # every output row participates
+    assert (dw.abs().sum(dim=0) > 0).all()    # every input col participates
+
+
+def test_inject_mlp_targets():
+    model = _fake_hf_model()
+    head = SimpleNamespace(layer=1, head=2)
+    adapters = inject_head_lora(model, [head], rank=2, alpha=4,
+                                targets=("q_proj", "gate_proj", "up_proj", "down_proj"))
+    assert len(adapters) == 4                  # 1 attn (q) + 3 mlp on the targeted layer
+    edited = model.model.layers[1]
+    assert isinstance(edited.self_attn.q_proj, HeadMaskedLoRALinear)
+    assert all(isinstance(getattr(edited.mlp, p), HeadMaskedLoRALinear)
+               for p in ("gate_proj", "up_proj", "down_proj"))
+    # untouched layer's MLP stays plain Linear
+    assert isinstance(model.model.layers[0].mlp.gate_proj, nn.Linear)
 
 
 def test_inject_does_not_create_module_cycle():

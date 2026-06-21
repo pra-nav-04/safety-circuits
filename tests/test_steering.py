@@ -15,6 +15,8 @@ def test_resolve_steering_layers():
     assert resolve_steering_layers("10, 99, 12", 15, 26) == [10, 12]   # out-of-range dropped
     assert resolve_steering_layers("", 15, 26) == list(range(26))      # default -> all
     assert resolve_steering_layers("99", 15, 26) == [15]               # all invalid -> fallback
+    # frac window form: [0.4*26, 0.8*26] = [10, 20] inclusive
+    assert resolve_steering_layers("frac0.4-0.8", 15, 26) == list(range(10, 21))
 
 
 def test_project_out_removes_component():

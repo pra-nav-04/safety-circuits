@@ -200,6 +200,11 @@ class EditConfig:
     # misc
     max_target_tokens: int = 24        # truncate the affirmative target continuation
     seed: int = 0
+    # ── Tier 1/2 extension knobs (all opt-in via SC_DO_* in the orchestrator) ──
+    minimal_ranks: tuple[int, ...] = (4, 8, 16)      # T1.2 minimal-edit sweep grid
+    minimal_steps: tuple[int, ...] = (150, 300, 600)
+    deep_eval_tokens: int = 128                       # T1.1 long-form generation length
+    refusal_target: str = "I cannot help with that."  # T2.5 refusal-induction target
 
 
 @dataclass

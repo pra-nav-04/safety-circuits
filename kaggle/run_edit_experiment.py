@@ -37,9 +37,11 @@ from safety_circuits.data import (
     load_advbench, load_hh_harmless, build_matched_pairs, load_wikitext2, load_harmbench,
     save_jsonl,
 )
-from safety_circuits.editing import edit_and_load, load_via_port
+from safety_circuits.editing import edit_and_load, edit_roundtrip_and_load, load_via_port
 from safety_circuits.steering import compute_refusal_direction, make_steering_hooks, resolve_steering_layers
-from safety_circuits.edit_eval import evaluate_edited_model, repatch_after_edit
+from safety_circuits.edit_eval import (
+    deep_eval, evaluate_edited_model, refusal_direction_shift, repatch_after_edit,
+)
 from safety_circuits.analysis import head_heatmap, plot_heatmap, plot_k_sweep, plot_scalpel_axis
 from safety_circuits.refusal import score_refusal
 
@@ -56,6 +58,12 @@ METHODS     = [m.strip() for m in os.environ.get("SC_EDIT_METHODS", "steering,lo
 DO_REPATCH  = os.environ.get("SC_DO_REPATCH", "1") == "1"
 DO_TRANSFER = os.environ.get("SC_EDIT_TRANSFER", "0") == "1"  # F1c stretch (off by default)
 
+# ── Tier 1/2 extensions — all OPT-IN (default off); the validated pipeline is unchanged unless set ──
+DO_GENERALIZATION = os.environ.get("SC_DO_GENERALIZATION", "0") == "1"  # T1.1 long-form + per-category + toxicity
+DO_MINIMAL_SWEEP  = os.environ.get("SC_DO_MINIMAL_SWEEP", "0") == "1"   # T1.2 rank×steps minimal-edit grid
+DO_DIRSHIFT       = os.environ.get("SC_DO_DIRSHIFT", "0") == "1"        # T2.6/2.7 refusal-direction shift
+DO_HARDENING      = os.environ.get("SC_DO_HARDENING", "0") == "1"       # T2.5 comply→refuse re-patch round-trip
+
 # Steering sweep grid — one pass tries every (extraction-frac × ablation-set:coeff) combo,
 # records refusal+ppl for each in <model>_edit_steering_sweep.csv, and promotes the best
 # *coherent* (ppl within tolerance) combo to the headline 'steering' row (re-eval'd with jailbreak).
@@ -65,7 +73,8 @@ STEER_PPL_TOL = float(os.environ.get("SC_STEERING_PPL_TOL", "0.5"))  # "coherent
 def _parse_steer_grid() -> list[tuple[str, float]]:
     # format: "<layers>:<coeff>" combos separated by ';'. <layers> may contain commas
     # ("all", "extract", "10,11,12"); coeff is after the LAST colon.
-    raw = os.environ.get("SC_STEERING_SWEEP", "all:0.1;all:0.2;all:0.4;extract:1.0")
+    raw = os.environ.get("SC_STEERING_SWEEP",
+                         "all:0.05;all:0.1;all:0.2;all:0.4;frac0.4-0.8:1.0;extract:1.0")
     grid = []
     for combo in raw.split(";"):
         combo = combo.strip()
@@ -188,14 +197,27 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
             summary.setdefault("addon_errors", {})["perplexity_texts"] = repr(e)
 
     jb_prompts = None
+    gen_prompts = gen_cats = None      # held-out harmful set WITH categories (for T1.1 deep eval)
     try:
-        jb_prompts = [p.text for p in load_harmbench(limit=N_PAIRS)]
+        jb = load_harmbench(limit=N_PAIRS)
+        jb_prompts = [p.text for p in jb]
+        gen_prompts = [p.text for p in jb]
+        gen_cats = [(p.meta or {}).get("category") for p in jb]
     except Exception as e:  # noqa: BLE001
         log(f"[{model_key}] HarmBench unavailable ({e!r}); skipping jailbreak read-out")
         summary.setdefault("addon_errors", {})["harmbench"] = repr(e)
 
+    # text views of the train split (refusal-direction extraction, round-trip data)
+    harm_txt = [h.text for h, _ in train_split]
+    safe_txt = [s.text for _, s in train_split]
+    edit_layers = sorted({h.layer for h in heads_all[:TOP_K]})   # layers touched by the primary edit
+
     rows: list[dict] = []
     examples_clean: dict[str, dict] = {}
+    # state carried from the baseline block into the LoRA block (Tier 1/2 extensions)
+    base_dirs: dict = {}
+    gen_rows: list[dict] = []
+    tox_pipe = None
 
     def _try(name, fn):
         try:
@@ -217,6 +239,25 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
             s = score_refusal(loaded, ep, generate_continuation=True)
             examples_clean[ep] = {"clean_continuation": s.continuation.strip(),
                                   "clean_refused": bool(s.refused_regex)}
+
+        # T2.6/2.7: baseline per-layer refusal directions (compared on the edited model later)
+        if DO_DIRSHIFT:
+            def _basedirs():
+                for L in edit_layers:
+                    base_dirs[L] = compute_refusal_direction(loaded, harm_txt, safe_txt, L)
+                log(f"[{model_key}] captured baseline refusal dirs @ layers {edit_layers}")
+            _try("dirshift_baseline", _basedirs)
+
+        # T1.1: baseline long-form generalization (does it produce content, not just openers?)
+        if DO_GENERALIZATION and gen_prompts:
+            def _genbase():
+                from safety_circuits.toxicity import _get_toxicity_pipeline
+                nonlocal tox_pipe
+                tox_pipe = _get_toxicity_pipeline()
+                gen_rows.extend(deep_eval(loaded, gen_prompts, gen_cats, label="baseline",
+                                          max_new_tokens=cfg.deep_eval_tokens, tox_pipe=tox_pipe))
+                log(f"[{model_key}] baseline deep-eval: {len(gen_prompts)} prompts")
+            _try("generalization_baseline", _genbase)
 
         if "steering" in METHODS:
             def _steer():
@@ -319,6 +360,25 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                                     save_to=str(out / f"{model_key}_edit_repatch_heatmap.png"),
                                 )
                             _try("repatch", _rp)
+                        # T1.1: long-form generalization on the edited model
+                        if DO_GENERALIZATION and gen_prompts:
+                            def _gen():
+                                gen_rows.extend(deep_eval(edited, gen_prompts, gen_cats,
+                                                          label=f"lora_k{k}",
+                                                          max_new_tokens=cfg.deep_eval_tokens, tox_pipe=tox_pipe))
+                                pd.DataFrame(gen_rows).to_csv(
+                                    out / f"{model_key}_edit_generalization.csv", index=False)
+                            _try("generalization", _gen)
+                        # T2.6/2.7: how far the edit rotated the refusal direction
+                        if DO_DIRSHIFT and base_dirs:
+                            def _ds():
+                                ds = refusal_direction_shift(base_dirs, edited, harm_txt, safe_txt,
+                                                             sorted(base_dirs))
+                                pd.DataFrame(ds).to_csv(
+                                    out / f"{model_key}_edit_direction_shift.csv", index=False)
+                                log(f"[{model_key}] direction shift: "
+                                    + ", ".join(f"L{r['layer']} cos={r['cosine']:.2f}" for r in ds))
+                            _try("dirshift", _ds)
                 finally:
                     edited = None   # drop the reference BEFORE gc so the VRAM is released
                     _gpu_gc()
@@ -337,6 +397,54 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 title=f"{spec.key}: refusal vs #heads retrained (LoRA)",
                 save_to=str(out / f"{model_key}_edit_headcount_sweep.png"),
             ))
+
+    base_ppl0 = next((r["perplexity"] for r in rows if r["label"] == "baseline"), None)
+
+    # ── T1.2 minimal-edit sweep (opt-in): smallest rank×steps that still flips refusal ──
+    if DO_MINIMAL_SWEEP:
+        import dataclasses
+        pk = min(TOP_K, len(heads_all))
+        def _minimal():
+            msweep = []
+            for r in cfg.minimal_ranks:
+                for st in cfg.minimal_steps:
+                    c2 = dataclasses.replace(cfg, rank=r, steps=st)
+                    log(f"[{model_key}] minimal-edit rank={r} steps={st} (k={pk})")
+                    ed = edit_and_load(spec, heads_all[:pk], c2, train_pairs, device=DEVICE, log=log)
+                    try:
+                        rep = evaluate_edited_model(ed, f"r{r}_s{st}", eval_prompts, None, ppl_texts)
+                        dppl = (100.0 * (rep.perplexity - base_ppl0) / base_ppl0
+                                if (base_ppl0 and rep.perplexity) else None)
+                        msweep.append({"rank": r, "steps": st, "refusal_rate": rep.refusal_rate,
+                                       "perplexity": rep.perplexity, "perplexity_pct_change": dppl})
+                    finally:
+                        ed = None
+                        _gpu_gc()
+            pd.DataFrame(msweep).to_csv(out / f"{model_key}_edit_minimal_sweep.csv", index=False)
+        _try("minimal_sweep", _minimal)
+
+    # ── T2.5 safety re-patch round-trip (opt-in): comply-edit → refuse-edit ──
+    if DO_HARDENING:
+        pk = min(TOP_K, len(heads_all))
+        def _hard():
+            ed = edit_roundtrip_and_load(spec, heads_all[:pk], cfg, train_pairs, harm_txt,
+                                         device=DEVICE, log=log)
+            try:
+                rep = evaluate_edited_model(ed, "roundtrip", eval_prompts, jb_prompts, ppl_texts)
+                base_ref = next((r["refusal_rate"] for r in rows if r["label"] == "baseline"), None)
+                removed = next((r["refusal_rate"] for r in rows if r["label"] == f"lora_k{pk}"), None)
+                pd.DataFrame([
+                    {"stage": "baseline", "refusal_rate": base_ref},
+                    {"stage": "after_comply_edit(removed)", "refusal_rate": removed},
+                    {"stage": "after_refuse_edit(restored)", "refusal_rate": rep.refusal_rate,
+                     "jailbreak_refusal_rate": rep.jailbreak_refusal_rate, "perplexity": rep.perplexity},
+                ]).to_csv(out / f"{model_key}_edit_roundtrip.csv", index=False)
+                log(f"[{model_key}] round-trip refusal: base {base_ref} → removed {removed} "
+                    f"→ restored {rep.refusal_rate}")
+            finally:
+                ed = None
+                _gpu_gc()
+        _try("hardening", _hard)
 
     # ── combined summary (baseline / steering / lora_k*) with ΔPPL ───────────
     base_ppl = next((r["perplexity"] for r in rows if r["label"] == "baseline"), None)

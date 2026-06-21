@@ -205,6 +205,10 @@ editing under every method. Headline visual per model: `results/editing/<model>/
   scatter** (editing — `*_scalpel_axis.png`) as the §9 headline. Finding E is the punchline: refusal is not
   modular under *deletion* but is editable under *retraining*.
 - Optional: Llama-3B higher-K ablation (does refusal fully drop past K=10?); 50-prompt human metric audit
-  (`notebooks/06_metric_audit.ipynb`) for the methodology section; finer LoRA (rank/steps/lr) ablation to
-  pin the *minimal* clean edit, and a re-tuned steering sweep on the two models where steering came closest
-  (Qwen1.5, Gemma3) to sharpen the axis midpoint.
+  (`notebooks/06_metric_audit.ipynb`) for the methodology section.
+- **Ongoing extensions (Tier 1/2)** — opt-in orchestrator blocks (`SC_DO_*`), each writing a per-model
+  artifact (see `RESEARCH_PLAN.md` §9 "Ongoing extensions"): generalization of the edit (does it produce
+  content or just the opener?) → `*_edit_generalization.csv`; minimal clean edit (smallest rank×steps) →
+  `*_edit_minimal_sweep.csv`; safety re-patch round-trip → `*_edit_roundtrip.csv`; refusal-direction shift
+  (mechanism + forensics) → `*_edit_direction_shift.csv`; Gemma-1 MLP-target probe (`SC_EDIT_TARGETS`).
+  Findings land here as they complete.

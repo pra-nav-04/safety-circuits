@@ -86,6 +86,22 @@ def build_suppression_examples(
     return examples
 
 
+def build_refusal_examples(
+    tokenizer,
+    spec: ModelSpec,
+    harm_prompts: list[str],
+    refusal_target: str = "I cannot help with that.",
+    max_target_tokens: int = 24,
+) -> list[dict]:
+    """SFT examples that *induce* refusal (the inverse objective) — chat-templated harmful
+    prompt → a canonical refusal string. Used by the T2.5 round-trip to test whether safety
+    can be cheaply *repaired* after a compliance edit. Reuses `build_suppression_examples`
+    with the refusal string as the supervised target."""
+    return build_suppression_examples(
+        tokenizer, spec, [(p, refusal_target) for p in harm_prompts], max_target_tokens
+    )
+
+
 def _collate(batch: list[dict], pad_id: int):
     maxlen = max(len(b["input_ids"]) for b in batch)
     input_ids, labels, attn = [], [], []
@@ -197,6 +213,24 @@ def load_via_port(spec: ModelSpec, device: str = "auto", dtype: str | None = Non
 
 
 # --------------------------------------------------------------- full pipeline
+def apply_lora_to_hf(hf_model, tokenizer, spec: ModelSpec, heads, cfg: EditConfig,
+                     examples, device, log=print) -> None:
+    """Inject a head-masked LoRA on `heads`, train it on `examples`, and merge it into the
+    HF model **in place**. Factored out of `edit_and_load` so edits can *chain* on the same
+    model (e.g. comply-edit → refuse-edit) for the T2.5 round-trip. `hf_model` must already
+    be on `device`."""
+    adapters = inject_head_lora(hf_model, heads, rank=cfg.rank, alpha=cfg.alpha, targets=cfg.targets)
+    log(f"  injected LoRA on {len(adapters)} projections "
+        f"({len({h.layer for h in heads})} layers, {len(heads)} heads, targets={cfg.targets})")
+    train_head_lora(hf_model, tokenizer, adapters, examples, cfg, device, log=log)
+    merge_head_lora(adapters)
+    log("  merged LoRA delta into target slices")
+    del adapters
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
 def edit_and_load(
     spec: ModelSpec,
     heads: "list[HeadRef]",
@@ -205,9 +239,11 @@ def edit_and_load(
     device: str = "auto",
     dtype: str | None = None,
     log=print,
+    examples: list[dict] | None = None,
 ) -> "LoadedModel":
     """Full F1 pipeline: load → inject head-masked LoRA on `heads` → train → merge →
-    port → return the edited `LoadedModel`."""
+    port → return the edited `LoadedModel`. Pass `examples` to override the default
+    suppression objective (e.g. a refusal-induction set for the round-trip)."""
     from .models import load_hf_model
 
     torch_device = resolve_device(device)
@@ -216,25 +252,61 @@ def edit_and_load(
     hf_model, tokenizer = load_hf_model(spec, torch_dtype)
     hf_model.to(torch_device)
 
-    adapters = inject_head_lora(hf_model, heads, rank=cfg.rank, alpha=cfg.alpha, targets=cfg.targets)
-    log(f"  injected head-masked LoRA on {len(adapters)} projections "
-        f"({len({h.layer for h in heads})} layers, {len(heads)} heads)")
-
-    examples = build_suppression_examples(tokenizer, spec, train_pairs, cfg.max_target_tokens)
-    train_head_lora(hf_model, tokenizer, adapters, examples, cfg, torch_device, log=log)
-
-    merge_head_lora(adapters)
-    log("  merged LoRA delta into target head slices")
+    if examples is None:
+        examples = build_suppression_examples(tokenizer, spec, train_pairs, cfg.max_target_tokens)
+    apply_lora_to_hf(hf_model, tokenizer, spec, heads, cfg, examples, torch_device, log=log)
 
     # Move the merged HF model off the GPU before TransformerLens rebuilds it there:
     # otherwise both the HF model and the TL copy sit on the T4 at once and OOM. TL reads
     # the weights from the (now-CPU) HF model and builds the hooked model on `device`.
     hf_model.to("cpu")
-    del adapters  # frees the LoRA wrapper tensors (still on GPU) before the port
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
+    loaded = port_hf_to_hooked(hf_model, tokenizer, spec, torch_device, torch_dtype)
+    del hf_model
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return loaded
+
+
+def edit_roundtrip_and_load(
+    spec: ModelSpec,
+    heads: "list[HeadRef]",
+    cfg: EditConfig,
+    comply_pairs: list[tuple[str, str]],
+    refuse_harm_prompts: list[str],
+    device: str = "auto",
+    dtype: str | None = None,
+    log=print,
+) -> "LoadedModel":
+    """T2.5 safety re-patch round-trip: on ONE model, first edit the heads to comply
+    (remove refusal), then edit the *same* heads again to refuse (restore safety), then
+    port. Tests whether safety can be cheaply repaired after a compliance attack. Examples
+    are built internally from the model's own tokenizer."""
+    from .models import load_hf_model
+
+    torch_device = resolve_device(device)
+    torch_dtype = resolve_dtype(dtype or spec.dtype)
+
+    hf_model, tokenizer = load_hf_model(spec, torch_dtype)
+    hf_model.to(torch_device)
+
+    comply_examples = build_suppression_examples(tokenizer, spec, comply_pairs, cfg.max_target_tokens)
+    refuse_examples = build_refusal_examples(tokenizer, spec, refuse_harm_prompts,
+                                             cfg.refusal_target, cfg.max_target_tokens)
+
+    log("  [round-trip] step 1/2 — comply edit (remove refusal)")
+    apply_lora_to_hf(hf_model, tokenizer, spec, heads, cfg, comply_examples, torch_device, log=log)
+    log("  [round-trip] step 2/2 — refuse edit (restore safety)")
+    apply_lora_to_hf(hf_model, tokenizer, spec, heads, cfg, refuse_examples, torch_device, log=log)
+
+    hf_model.to("cpu")
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     loaded = port_hf_to_hooked(hf_model, tokenizer, spec, torch_device, torch_dtype)
     del hf_model
     gc.collect()

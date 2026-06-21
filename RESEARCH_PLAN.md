@@ -267,5 +267,26 @@ paper's ethics statement.)
 | F2 — newer models, same families | Do H1/H2 · B · C hold on latest releases? | **dropped** — Qwen3/Gemma3 already in roster; nothing newer/smaller is TL-supported |
 | F1c — cross-generation transfer | Does one model's safety-head adapter transfer? | **infeasible on this roster** (shape mismatch + circuit migration; needs a same-arch pair) |
 
-> **Longer-horizon (beyond this phase):** scale **> 4B** parameters; **multi-axis** safety (deception,
-> bias, PII); **cross-lingual** refusal circuits — carried in the paper's Discussion as future work.
+### Ongoing extensions (Tier 1 + Tier 2) — *in progress*
+
+Sharpening + stress-testing the editing result. All implemented as **opt-in** orchestrator blocks
+(`SC_DO_*` env flags, default off; the validated main pipeline is unchanged unless enabled); each writes
+its own per-model artifact under `results/editing/<model>/`.
+
+| # | Direction | Question | Flag → artifact |
+|---|---|---|---|
+| **T1.1** | Generalization of the edit | Does the edited model produce harmful *content*, or just the "Sure, here is" opener? Long-form gen + per-HarmBench-category + toxicity-substance score. | `SC_DO_GENERALIZATION` → `<m>_edit_generalization.csv` |
+| **T1.2** | Minimal clean edit | What is the *smallest* edit (rank × steps) that still flips refusal cleanly? | `SC_DO_MINIMAL_SWEEP` → `<m>_edit_minimal_sweep.csv` |
+| **T1.3** | Gemma-1 / MLP probe | Why does the oldest, early-circuit model resist clean editing? Allow MLP (not just head) targets via `SC_EDIT_TARGETS=gate_proj,up_proj,down_proj`. | (reuses summary; MLP target in `lora.py`) |
+| **T1.4** | Steering best shot | Give directional ablation a fair midpoint (wider default sweep incl. low coeffs + a `frac0.4-0.8` window). | `SC_STEERING_SWEEP*` → `<m>_edit_steering_sweep.csv` |
+| **T2.5** | Hardening / re-patch | Can safety be cheaply *repaired* after the attack? comply-edit → refuse-edit round-trip. | `SC_DO_HARDENING` → `<m>_edit_roundtrip.csv` |
+| **T2.6/2.7** | Forensics + mechanism | Did retraining *rotate* the refusal direction (vs delete it)? Per-layer base-vs-edited cosine = mechanism signal + edit signature. | `SC_DO_DIRSHIFT` → `<m>_edit_direction_shift.csv` |
+
+> **Longer-horizon — Tier 3 (beyond this phase; paper Discussion as future work):**
+> - **Multi-axis safety** — do deception / bias / PII / sycophancy have localized, editable circuits too?
+> - **SAE / neuron-level editing** — target interpretable SAE features or specific MLP neurons (not just
+>   whole heads/MLPs) as the edit handle.
+> - **Same-architecture transfer (F1c, redone)** — a genuine adapter-transfer test needs two fine-tunes of
+>   *one* base (well-defined merge); infeasible on the current 9-checkpoint roster (every arch differs).
+> - **Scale > 4B** parameters (compute-bound on a single T4).
+> - **Cross-lingual** refusal circuits — is refusal shared across languages or per-language?

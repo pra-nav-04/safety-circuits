@@ -34,6 +34,11 @@ def resolve_steering_layers(spec: str, extract_layer: int, n_layers: int) -> lis
         return list(range(n_layers))
     if spec == "extract":
         return [extract_layer]
+    if spec.startswith("frac"):
+        # "frac0.4-0.8" → the layer window [0.4·depth, 0.8·depth] inclusive
+        lo, hi = (float(x) for x in spec[4:].split("-"))
+        a, b = int(lo * n_layers), int(hi * n_layers)
+        return [i for i in range(min(a, b), max(a, b) + 1) if 0 <= i < n_layers] or [extract_layer]
     out = [int(t) for t in spec.split(",") if t.strip() != ""]
     out = [i for i in out if 0 <= i < n_layers]
     return out or [extract_layer]

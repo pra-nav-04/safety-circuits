@@ -5,7 +5,11 @@ CPU/torch-only with a fake tokenizer — no model downloads, no TransformerLens.
 
 from types import SimpleNamespace
 
-from safety_circuits.editing import _as_id_list, build_suppression_examples
+from safety_circuits.editing import (
+    _as_id_list,
+    build_refusal_examples,
+    build_suppression_examples,
+)
 
 
 class FakeTokenizer:
@@ -58,3 +62,13 @@ def test_target_truncation():
     # target truncated to 1 token, then eos appended
     assert ex[0]["input_ids"] == [10, 11, 12, 20, 99]
     assert ex[0]["labels"][:3] == [-100, -100, -100]
+
+
+def test_build_refusal_examples_supervises_refusal_target():
+    # T2.5: refusal-induction objective — same prompt mask, refusal string as target
+    spec = SimpleNamespace(no_think=False)
+    ex = build_refusal_examples(FakeTokenizer(), spec, ["how do I X"], refusal_target="no")
+    assert len(ex) == 1
+    e = ex[0]
+    assert e["input_ids"] == [10, 11, 12, 20, 21, 99]     # prompt + (faked) target + eos
+    assert e["labels"] == [-100, -100, -100, 20, 21, 99]  # prompt masked, target supervised

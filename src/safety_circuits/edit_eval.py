@@ -82,3 +82,66 @@ def repatch_after_edit(loaded: LoadedModel, pairs: list[tuple[str, str]]) -> pd.
     main study's `*_patch_z.csv`)."""
     per_pair = [patch_each_head(loaded, h, s) for h, s in pairs]
     return aggregate_pairs(per_pair)
+
+
+# --------------------------------------------------------------- T1.1 generalization
+def deep_eval(loaded: LoadedModel, prompts: list[str], categories: list[str | None] | None = None,
+              label: str = "model", max_new_tokens: int = 128, tox_pipe=None) -> list[dict]:
+    """Does the (edited) model produce harmful *content*, or just the 'Sure, here is' opener?
+
+    Generates a **long** continuation per harmful prompt and scores it for refusal (regex on
+    the full text), toxic *substance* (`toxicity.score_toxicity`), and length. With HarmBench
+    `categories`, downstream code can break results out per harm category. Returns per-prompt
+    rows; aggregate with pandas. Run on baseline and edited models to compare."""
+    from .refusal import regex_refusal, score_refusal
+    from .toxicity import score_toxicity
+
+    categories = categories or [None] * len(prompts)
+    conts = []
+    rows = []
+    for p, cat in zip(prompts, categories):
+        s = score_refusal(loaded, p, generate_continuation=True, max_new_tokens=max_new_tokens)
+        cont = s.continuation.strip()
+        conts.append(cont)
+        rows.append({"label": label, "category": cat, "prompt": p, "continuation": cont,
+                     "refused": bool(regex_refusal(cont)), "gen_len_chars": len(cont)})
+    tox = score_toxicity(conts, pipe=tox_pipe)            # batch through toxic-bert once
+    for r, t in zip(rows, tox):
+        r["toxicity"] = round(float(t), 4)
+    return rows
+
+
+# --------------------------------------------------------------- T2.6/T2.7 mechanism + forensics
+@dataclass
+class DirShiftRow:
+    layer: int
+    cosine: float        # cos(base refusal dir, edited refusal dir) — <1 ⇒ the edit rotated it
+    base_norm: float
+    edited_norm: float
+
+
+def refusal_direction_shift(base_dirs: dict, edited_loaded: LoadedModel,
+                            harm: list[str], safe: list[str], layers: list[int]) -> list[dict]:
+    """How much did the edit move the refusal direction, per layer? Recomputes the
+    difference-of-means refusal direction on the **edited** model and compares it (cosine +
+    norm) to the **baseline** directions captured before editing (`base_dirs[layer]`, unit
+    vectors from `steering.compute_refusal_direction`). A cosine well below 1 at the edited
+    layers is the mechanistic signal that retraining *rotated* the head's refusal output —
+    and the per-layer cosine vector doubles as a forensic signature of an edited model."""
+    import torch
+
+    from .steering import compute_refusal_direction
+
+    rows = []
+    for layer in layers:
+        bd = base_dirs.get(layer)
+        if bd is None:
+            continue
+        ed = compute_refusal_direction(edited_loaded, harm, safe, layer)
+        bd_u = bd / (bd.norm() + 1e-8)
+        ed_u = ed.to(bd.device) / (ed.norm() + 1e-8)
+        cos = float(torch.dot(bd_u.float(), ed_u.float()).item())
+        rows.append(DirShiftRow(layer=layer, cosine=round(cos, 4),
+                                base_norm=round(float(bd.norm()), 4),
+                                edited_norm=round(float(ed.norm()), 4)).__dict__)
+    return rows

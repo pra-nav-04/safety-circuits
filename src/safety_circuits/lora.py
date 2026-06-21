@@ -58,6 +58,14 @@ def _attn_module(hf_model: nn.Module, layer: int) -> nn.Module:
     return attn
 
 
+def _mlp_module(hf_model: nn.Module, layer: int) -> nn.Module:
+    """The decoder layer's MLP block (`layer.mlp` for Llama/Qwen/Gemma)."""
+    return getattr(_decoder_layers(hf_model)[layer], "mlp")
+
+
+_MLP_PROJ = ("gate_proj", "up_proj", "down_proj")  # layer-restricted (no head structure) targets
+
+
 @dataclass
 class GQAInfo:
     n_heads: int
@@ -130,7 +138,11 @@ class HeadMaskedLoRALinear(nn.Module):
         out_mask = torch.zeros(out_features, 1)
         in_mask = torch.zeros(1, in_features)
         d = info.head_dim
-        if role in ("q", "k", "v"):
+        if role == "full":
+            # no head structure (e.g. an MLP projection) — plain unrestricted LoRA
+            out_mask[:] = 1.0
+            in_mask[:] = 1.0
+        elif role in ("q", "k", "v"):
             # restrict output rows to the head/group slices; full input
             in_mask[:] = 1.0
             slots = (
@@ -183,26 +195,37 @@ def inject_head_lora(
     for h in heads:
         by_layer.setdefault(h.layer, []).append(h.head)
 
+    attn_targets = [t for t in targets if t in _ROLE_BY_PROJ]
+    mlp_targets = [t for t in targets if t in _MLP_PROJ]
+
     adapters: list[HeadMaskedLoRALinear] = []
+
+    def _wrap(parent, proj, role, head_idx):
+        base = getattr(parent, proj, None)
+        if not isinstance(base, nn.Linear):
+            return  # arch without this exact name — skip rather than crash
+        adapter = HeadMaskedLoRALinear(
+            base, role=role, heads=head_idx, info=info, rank=rank, alpha=alpha
+        )
+        # Store the parent ref via object.__setattr__ so nn.Module does NOT register
+        # `parent` as a submodule of the adapter — that would create a cycle
+        # (parent → adapter → parent) and blow the stack on any module-tree walk
+        # (e.g. hf_model.train()). `_attr` is a str so it's a plain attribute.
+        object.__setattr__(adapter, "_parent", parent)
+        adapter._attr = proj
+        adapter.lora_A.requires_grad_(True)
+        adapter.lora_B.requires_grad_(True)
+        setattr(parent, proj, adapter)
+        adapters.append(adapter)
+
     for layer, head_idx in by_layer.items():
         attn = _attn_module(hf_model, layer)
-        for proj in targets:
-            base = getattr(attn, proj, None)
-            if not isinstance(base, nn.Linear):
-                continue  # arch without this exact name — skip rather than crash
-            adapter = HeadMaskedLoRALinear(
-                base, role=_ROLE_BY_PROJ[proj], heads=head_idx, info=info, rank=rank, alpha=alpha
-            )
-            # Store the parent ref via object.__setattr__ so nn.Module does NOT register
-            # `attn` as a submodule of the adapter — that would create a cycle
-            # (attn → adapter → attn) and blow the stack on any module-tree walk
-            # (e.g. hf_model.train()). `_attr` is a str so it's a plain attribute.
-            object.__setattr__(adapter, "_parent", attn)
-            adapter._attr = proj
-            adapter.lora_A.requires_grad_(True)
-            adapter.lora_B.requires_grad_(True)
-            setattr(attn, proj, adapter)
-            adapters.append(adapter)
+        for proj in attn_targets:
+            _wrap(attn, proj, _ROLE_BY_PROJ[proj], head_idx)
+        if mlp_targets:  # layer-restricted (whole-MLP) LoRA — no head/neuron masking
+            mlp = _mlp_module(hf_model, layer)
+            for proj in mlp_targets:
+                _wrap(mlp, proj, "full", head_idx)
     return adapters
 
 

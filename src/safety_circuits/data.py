@@ -176,35 +176,44 @@ def load_xstest(limit: int | None = None, safe_only: bool = True) -> list[Prompt
     Tries HF ``walledai/XSTest`` (cols ``prompt``/``label``), then falls back to the public
     CSV from the original repo (filtering safe = ``type`` not containing "contrast").
     """
-    out: list[Prompt] = []
+    def _is_safe(row: dict) -> bool:
+        # prefer an explicit label; else infer from `type` (unsafe types contain "contrast")
+        if row.get("label") is not None:
+            return str(row["label"]).lower() == "safe"
+        return "contrast" not in (row.get("type") or "").lower()
+
+    # 1) HF (split name varies across mirrors) — swallow failures and fall back to the CSV.
     try:
         from datasets import load_dataset
 
-        ds = load_dataset("walledai/XSTest", split="test")
-        for row in ds:
-            label = str(row.get("label", "safe")).lower()
-            if safe_only and label != "safe":
+        ds = load_dataset("walledai/XSTest")
+        split = "test" if "test" in ds else ("train" if "train" in ds else next(iter(ds)))
+        out: list[Prompt] = []
+        for row in ds[split]:
+            if safe_only and not _is_safe(row):
                 continue
-            out.append(Prompt(text=row["prompt"], category="safe", source="xstest",
-                              expected_refusal=False, meta={"label": label}))
+            out.append(Prompt(text=row["prompt"], category="safe" if _is_safe(row) else "harm",
+                              source="xstest", expected_refusal=not _is_safe(row),
+                              meta={"label": row.get("label"), "type": row.get("type")}))
             if limit and len(out) >= limit:
                 break
         if out:
             return out
-    except Exception:  # noqa: BLE001 — fall back to the raw CSV
-        out = []
+    except Exception:  # noqa: BLE001
+        pass
 
+    # 2) Raw CSV from the original repo (root file is `xstest_prompts.csv`; cols prompt, type).
     import csv, io, urllib.request
     url = ("https://raw.githubusercontent.com/paul-rottger/exaggerated-safety"
-           "/main/xstest_v2_prompts.csv")
+           "/main/xstest_prompts.csv")
     with urllib.request.urlopen(url, timeout=30) as r:
         text = r.read().decode()
+    out = []
     for row in csv.DictReader(io.StringIO(text)):
-        is_safe = "contrast" not in (row.get("type") or "").lower()
-        if safe_only and not is_safe:
+        if safe_only and not _is_safe(row):
             continue
-        out.append(Prompt(text=row["prompt"], category="safe" if is_safe else "harm",
-                          source="xstest", expected_refusal=not is_safe,
+        out.append(Prompt(text=row["prompt"], category="safe" if _is_safe(row) else "harm",
+                          source="xstest", expected_refusal=not _is_safe(row),
                           meta={"type": row.get("type")}))
         if limit and len(out) >= limit:
             break

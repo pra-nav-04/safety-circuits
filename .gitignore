@@ -37,3 +37,6 @@ htmlcov/
 .ruff_cache/
 .kaggle_kernel_id
 kaggle/kernel.ipynb
+
+# Editing-run staging zips (extract into results/editing*/<model>/ instead of committing the zip)
+results/**/*.zip

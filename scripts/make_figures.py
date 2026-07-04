@@ -40,7 +40,7 @@ MODELS = [
     ("gemma2-2b",    "Gemma2-2B",    "Gemma"),
     ("gemma3-1b",    "Gemma3-1B",    "Gemma"),
     ("llama3.2-1b",  "Llama-3.2-1B", "Llama"),
-    ("llama3-3b",    "Llama-3.2-3B", "Llama"),
+    ("llama3.2-3b",    "Llama-3.2-3B", "Llama"),
 ]
 FAMILY_COLOR = {"Qwen": "#d1495b", "Gemma": "#2e7d32", "Llama": "#1565c0"}
 
@@ -137,7 +137,7 @@ def fig_migration(rows):
     gen_order = {
         "Qwen":  [("qwen1.5-1.8b", "1.5"), ("qwen2-1.5b", "2"), ("qwen2.5", "2.5"), ("qwen3", "3")],
         "Gemma": [("gemma1-2b", "1"), ("gemma2-2b", "2"), ("gemma3-1b", "3")],
-        "Llama": [("llama3.2-1b", "3.2-1B"), ("llama3-3b", "3.2-3B")],
+        "Llama": [("llama3.2-1b", "3.2-1B"), ("llama3.2-3b", "3.2-3B")],
     }
     by_key = {r["key"]: r for r in rows}
     fig, ax = plt.subplots(figsize=(8, 5.5))

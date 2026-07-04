@@ -13,7 +13,7 @@
 #   3. Download results:  python scripts/kaggle_api.py output
 #
 # To subset/resume, add a cell ABOVE the bootstrap, e.g.:
-#   import os; os.environ["SC_MODELS"] = "llama3-3b,phi3"; os.environ["SC_SKIP_EXISTING"] = "1"
+#   import os; os.environ["SC_MODELS"] = "llama3.2-3b,phi3"; os.environ["SC_SKIP_EXISTING"] = "1"
 
 set -euo pipefail
 

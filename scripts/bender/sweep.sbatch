@@ -23,7 +23,7 @@ SC_ENV="${SC_ENV:-sc}"
 REPO_ROOT="${SC_REPO:-$HOME/safety-circuits}"
 
 # Cheapest-first order (matches _COST in run_experiment.py). One entry per array index.
-MODELS=(gemma3-1b llama3.2-1b qwen2.5 qwen2-1.5b qwen1.5-1.8b qwen3 gemma1-2b gemma2-2b llama3-3b)
+MODELS=(gemma3-1b llama3.2-1b qwen2.5 qwen2-1.5b qwen1.5-1.8b qwen3 gemma1-2b gemma2-2b llama3.2-3b)
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
 
 module load Miniforge3

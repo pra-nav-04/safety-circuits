@@ -32,7 +32,7 @@ pytest -q          # smoke tests (CPU, < 30s)
 python -m safety_circuits.cli run-mvp --model qwen --n_pairs 16 --top_k 10
 ```
 
-(`--model` takes any key from `MODELS` in `config.py`: `qwen`, `qwen3`, `gemma3-1b`, `llama3-3b`, `phi3`, `falcon3-1b`, `olmo2-1b`, `tinyllama`.)
+(`--model` takes any key from `MODELS` in `config.py`: `qwen`, `qwen3`, `gemma3-1b`, `llama3.2-3b`, `phi3`, `falcon3-1b`, `olmo2-1b`, `tinyllama`.)
 
 ## Layout
 

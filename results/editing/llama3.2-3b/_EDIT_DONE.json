@@ -1,5 +1,5 @@
 {
-  "model": "llama3-3b",
+  "model": "llama3.2-3b",
   "hf_name": "meta-llama/Llama-3.2-3B-Instruct",
   "status": "ok",
   "seconds": 6086.4,

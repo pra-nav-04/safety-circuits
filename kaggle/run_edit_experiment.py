@@ -98,7 +98,7 @@ START    = time.time()
 _COST = {
     "gemma3-1b": 1, "llama3.2-1b": 2,
     "qwen2.5": 3, "qwen2-1.5b": 4, "qwen1.5-1.8b": 5, "qwen3": 6,
-    "gemma1-2b": 7, "gemma2-2b": 8, "llama3-3b": 9,
+    "gemma1-2b": 7, "gemma2-2b": 8, "llama3.2-3b": 9,
 }
 _DEFAULT_EXCLUDE = {"tinyllama", "phi3", "falcon3-1b", "olmo2-1b", "gemma4-e2b"}
 

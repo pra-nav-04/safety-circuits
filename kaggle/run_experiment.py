@@ -72,7 +72,7 @@ _COST = {
     "gemma3-1b": 1, "llama3.2-1b": 2,
     "qwen2.5": 3, "qwen2-1.5b": 4, "qwen1.5-1.8b": 5, "qwen3": 6,
     "gemma1-2b": 7, "gemma2-2b": 8,
-    "llama3-3b": 9,
+    "llama3.2-3b": 9,
     # excluded/probe (sort last)
     "falcon3-1b": 20, "olmo2-1b": 21, "tinyllama": 22, "phi3": 23, "gemma4-e2b": 24,
 }
@@ -86,7 +86,7 @@ _COST = {
 #   phi3        — listed, but the HF-port produces garbage logits / OOM-kills the kernel.
 #   gemma4-e2b  — Gemma 4 not in TL's list + multimodal/MoE arch; probe only.
 # Default supported set (9): qwen1.5-1.8b, qwen2-1.5b, qwen2.5, qwen3,
-#                            gemma1-2b, gemma2-2b, gemma3-1b, llama3.2-1b, llama3-3b.
+#                            gemma1-2b, gemma2-2b, gemma3-1b, llama3.2-1b, llama3.2-3b.
 _DEFAULT_EXCLUDE = {"tinyllama", "phi3", "falcon3-1b", "olmo2-1b", "gemma4-e2b"}
 
 

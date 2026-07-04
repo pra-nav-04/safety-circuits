@@ -117,12 +117,12 @@ MODELS: dict[str, ModelSpec] = {
     "llama3.2-1b": ModelSpec(
         key="llama3.2-1b",
         hf_name="meta-llama/Llama-3.2-1B-Instruct",
-        tl_name=None,  # HF path (mirrors llama3-3b). GATED: accept terms at hf.co/meta-llama/Llama-3.2-1B-Instruct
+        tl_name=None,  # HF path (mirrors llama3.2-3b). GATED: accept terms at hf.co/meta-llama/Llama-3.2-1B-Instruct
         refusal_first_tokens=_REFUSAL,
         dtype="float16",
     ),
-    "llama3-3b": ModelSpec(
-        key="llama3-3b",
+    "llama3.2-3b": ModelSpec(
+        key="llama3.2-3b",
         hf_name="meta-llama/Llama-3.2-3B-Instruct",
         tl_name=None,  # TL's from_pretrained loads fp32-first then casts → OOM on T4; use HF path. GATED: accept terms at hf.co/meta-llama/Llama-3.2-3B-Instruct
         refusal_first_tokens=_REFUSAL,

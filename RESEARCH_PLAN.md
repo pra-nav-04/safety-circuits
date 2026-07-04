@@ -100,6 +100,29 @@ Run 2.4–2.5 on all 9 models and compare **within families across generations**
 - **Removability vs capability cost** (Δrefusal vs ΔPPL) — the coupling that falsifies H3b (Finding A).
 - Extra probes: **HarmBench jailbreak** stress test (does the circuit still fire / margins flip?), **last-token** vs position-agnostic patching, **attention-pattern** vs `z` patching, and an **RTP continuation-toxicity** probe (does ablation transfer to toxic generation?).
 
+### 2.7 Data splits & leakage control (editing suite, §9)
+
+The §9 editing suite (which *fits* parameters and *selects* hyperparameters) uses an **airtight 3-way,
+disjoint, seeded (SEED=0) split** of the AdvBench prompt pool:
+- **train** (default 60) — fit the head-restricted LoRA and extract the steering direction; never evaluated on.
+- **validation** (default 45) — **all model/hyperparameter selection**: the best steering combo, and the
+  head-count *k* (`chosen_k` = smallest k whose *val* refusal ≤ threshold).
+- **test** (default 45) — **all reported headline numbers** (baseline, steering, chosen-*k* LoRA + jailbreak).
+
+Each *k* is trained once and scored on both val (selection) and test (reporting), so this costs no extra
+training. Sizes are env-configurable (`SC_N_TRAIN/VAL/TEST`); every output row is tagged `split=val|test`.
+This removes the two leakage paths of the earlier 2-way split — LoRA/steering **fitting** and
+**hyperparameter selection** both leaking into the reported metric. In addition, the strongest reads are
+**cross-dataset held-out**: HarmBench (jailbreak + the long-form generalization deep-eval) and XSTest
+(benign substance-unlock) — trained on AdvBench/HH, evaluated on different distributions.
+
+**Documented limitation (head-localization leakage).** The safety heads themselves were localized in the
+mapping study (§2.4 patch sweep) on AdvBench/HH pairs drawn from the same pool, so head *selection* saw
+prompts that later appear in val/test. The 3-way split controls fitting- and selection-leakage but not
+head-localization leakage (it affects all AdvBench splits equally); a fully held-out localization split in
+the mapping study is future work. The cross-dataset HarmBench/XSTest reads are immune and remain the
+strongest claims.
+
 ---
 
 ## 3. Experiments

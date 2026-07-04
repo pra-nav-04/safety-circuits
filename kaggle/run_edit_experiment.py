@@ -47,7 +47,17 @@ from safety_circuits.refusal import score_refusal
 
 
 # ───────────────────────────── config (env) ─────────────────────────────
-N_PAIRS     = int(os.environ.get("SC_N_PAIRS", "50"))
+# Airtight 3-way split of the harmful (AdvBench) pairs:
+#   train → fit LoRA + extract steering direction   (never evaluated on)
+#   val   → ALL model/hyperparameter selection      (best steering combo, head-count k)
+#   test  → ALL reported headline numbers           (baseline, steering, chosen-k lora + jailbreak)
+# Selection-on-val / report-on-test removes the optimistic bias of the old 2-way split.
+N_TRAIN = int(os.environ.get("SC_N_TRAIN", "60"))
+N_VAL   = int(os.environ.get("SC_N_VAL",   "45"))
+N_TEST  = int(os.environ.get("SC_N_TEST",  "45"))
+N_PAIRS = N_TRAIN + N_VAL + N_TEST                 # total AdvBench pairs (also used for benign-substance indexing)
+N_JB    = int(os.environ.get("SC_N_JB", "50"))      # HarmBench jailbreak/generalization count (stable as pool grows)
+SELECT_REFUSAL_THRESH = float(os.environ.get("SC_SELECT_REFUSAL_THRESH", "0.0"))  # chosen k = smallest val refusal ≤ this
 HEAVY_PAIRS = int(os.environ.get("SC_HEAVY_PAIRS", "8"))      # pairs for the re-patch sweep
 TOP_K       = int(os.environ.get("SC_TOP_K", "10"))          # primary K (the headline LoRA edit)
 PPL_TEXTS   = int(os.environ.get("SC_PPL_TEXTS", "64"))
@@ -184,16 +194,22 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
     heads_all = _load_heads(model_key)
     log(f"[{model_key}] loaded {len(heads_all)} localized heads")
 
-    # ── data (held-out eval split mirrors run_experiment.py) ─────────────────
-    harm  = load_advbench(limit=N_PAIRS * 4)
+    # ── data: airtight 3-way disjoint, seeded split (train fit / val select / test report) ──
+    harm  = load_advbench(limit=None)              # load the full pool (~520); length filter drops some
     safe  = load_hh_harmless(limit=N_PAIRS * 4)
-    pairs = build_matched_pairs(harm, safe, n_pairs=N_PAIRS, seed=SEED)
-    half = N_PAIRS // 2
-    train_split, eval_split = pairs[:half], pairs[half:]
-    eval_prompts = [h.text for h, _ in eval_split]
+    pairs = build_matched_pairs(harm, safe, n_pairs=N_PAIRS, seed=SEED)  # deterministic given SEED
+    if len(pairs) < N_TRAIN + N_VAL + N_TEST:
+        raise RuntimeError(f"only {len(pairs)} matched pairs; need {N_TRAIN + N_VAL + N_TEST} "
+                           f"(lower SC_N_TRAIN/SC_N_VAL/SC_N_TEST)")
+    train_split = pairs[:N_TRAIN]
+    val_split   = pairs[N_TRAIN:N_TRAIN + N_VAL]
+    test_split  = pairs[N_TRAIN + N_VAL:N_TRAIN + N_VAL + N_TEST]
+    val_prompts  = [h.text for h, _ in val_split]    # selection ONLY
+    test_prompts = [h.text for h, _ in test_split]   # reported headline ONLY
     # suppression targets come from AdvBench's `target` field (Prompt.meta["target"])
     train_pairs = [(h.text, (h.meta or {}).get("target") or "Sure, here is") for h, _ in train_split]
     repatch_pairs = [(h.text, s.text) for h, s in train_split[:HEAVY_PAIRS]]
+    log(f"[{model_key}] split: train {len(train_split)} / val {len(val_split)} / test {len(test_split)} (seed {SEED})")
 
     ppl_texts = None
     if PPL_TEXTS:
@@ -206,7 +222,7 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
     jb_prompts = None
     gen_prompts = gen_cats = None      # held-out harmful set WITH categories (for T1.1 deep eval)
     try:
-        jb = load_harmbench(limit=N_PAIRS)
+        jb = load_harmbench(limit=N_JB)
         jb_prompts = [p.text for p in jb]
         gen_prompts = [p.text for p in jb]
         gen_cats = [(p.meta or {}).get("category") for p in jb]
@@ -236,13 +252,14 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
     # ── baseline (port HF→TL, no edit) + steering baseline (reuses same model) ──
     loaded = load_via_port(spec, device=DEVICE)
     try:
-        base = evaluate_edited_model(loaded, "baseline", eval_prompts, jb_prompts, ppl_texts)
-        rows.append(base.to_row())
-        pd.DataFrame([base.to_row()]).to_csv(out / f"{model_key}_edit_baseline.csv", index=False)
+        base = evaluate_edited_model(loaded, "baseline", test_prompts, jb_prompts, ppl_texts)
+        base_row = {**base.to_row(), "split": "test"}
+        rows.append(base_row)
+        pd.DataFrame([base_row]).to_csv(out / f"{model_key}_edit_baseline.csv", index=False)
         log(f"[{model_key}] baseline refusal {base.refusal_rate:.0%}; ppl {base.perplexity}")
 
-        # capture baseline continuations for the examples artifact
-        for ep in eval_prompts[:8]:
+        # capture baseline continuations for the examples artifact (test prompts — match the edited side)
+        for ep in test_prompts[:8]:
             s = score_refusal(loaded, ep, generate_continuation=True)
             examples_clean[ep] = {"clean_continuation": s.continuation.strip(),
                                   "clean_refused": bool(s.refused_regex)}
@@ -290,7 +307,7 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                         hooks = make_steering_hooks(direction, abl, coeff)
                         # refusal + perplexity only (skip jailbreak here — cheap sweep)
                         r = evaluate_edited_model(loaded, f"steer_L{layer}_{spec}_c{coeff}",
-                                                  eval_prompts, None, ppl_texts, fwd_hooks=hooks)
+                                                  val_prompts, None, ppl_texts, fwd_hooks=hooks)
                         ppl_pct = (100.0 * (r.perplexity - base_ppl) / base_ppl
                                    if (base_ppl and r.perplexity) else None)
                         coherent = (r.perplexity is not None and base_ppl is not None
@@ -298,7 +315,7 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                         sweep_rows.append({
                             "extract_layer": layer, "ablate_spec": spec, "n_ablate_layers": len(abl),
                             "coeff": coeff, "refusal_rate": r.refusal_rate, "perplexity": r.perplexity,
-                            "perplexity_pct_change": ppl_pct, "coherent": coherent,
+                            "perplexity_pct_change": ppl_pct, "coherent": coherent, "split": "val",
                         })
                         pstr = f"{r.perplexity:.1f}" if r.perplexity is not None else "n/a"
                         log(f"[{model_key}] steer L{layer} {spec}×{len(abl)} c{coeff}: "
@@ -320,10 +337,11 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 layer = best["extract_layer"]   # its direction is already in dir_cache
                 hooks = make_steering_hooks(dir_cache[layer], resolve_steering_layers(
                     best["ablate_spec"], layer, loaded.n_layers), best["coeff"])
-                rep = evaluate_edited_model(loaded, "steering", eval_prompts, jb_prompts, ppl_texts,
+                rep = evaluate_edited_model(loaded, "steering", test_prompts, jb_prompts, ppl_texts,
                                             fwd_hooks=hooks)
-                rows.append(rep.to_row())
-                pd.DataFrame([rep.to_row()]).to_csv(out / f"{model_key}_edit_steering.csv", index=False)
+                rep_row = {**rep.to_row(), "split": "test"}
+                rows.append(rep_row)
+                pd.DataFrame([rep_row]).to_csv(out / f"{model_key}_edit_steering.csv", index=False)
             _try("steering", _steer)
     finally:
         loaded = None      # drop the run_one reference BEFORE gc so the VRAM is released
@@ -336,26 +354,32 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
             head_counts = sorted({*head_counts, TOP_K})
         primary_k = TOP_K if TOP_K in head_counts else (head_counts[-1] if head_counts else 0)
 
+        sweep_rows: list[dict] = []            # per-k VAL rows (selection) → headcount_sweep.csv
+        test_rows_by_k: dict[int, dict] = {}   # per-k TEST rows (headline)
+
         for k in head_counts:
             def _lora(k=k):
                 log(f"[{model_key}] LoRA edit on top-{k} heads "
                     f"(rank {cfg.rank}, steps {cfg.steps})")
                 edited = edit_and_load(spec, heads_all[:k], cfg, train_pairs, device=DEVICE, log=log)
                 try:
-                    rep = evaluate_edited_model(edited, f"lora_k{k}", eval_prompts, jb_prompts, ppl_texts)
-                    rows.append(rep.to_row())
-                    log(f"[{model_key}] lora_k{k} refusal {rep.refusal_rate:.0%}; ppl {rep.perplexity}")
+                    # train once, score twice: VAL (selection; ppl here, jb skipped) + TEST (headline; +jb).
+                    # WikiText-2 perplexity is split-independent → compute on val, reuse for the test row.
+                    rv = evaluate_edited_model(edited, f"lora_k{k}", val_prompts, None, ppl_texts)
+                    sweep_rows.append({**rv.to_row(), "k": k, "split": "val"})
+                    rt = evaluate_edited_model(edited, f"lora_k{k}", test_prompts, jb_prompts, None)
+                    test_rows_by_k[k] = {**rt.to_row(), "perplexity": rv.perplexity, "k": k, "split": "test"}
+                    log(f"[{model_key}] lora_k{k} refusal val {rv.refusal_rate:.0%} / "
+                        f"test {rt.refusal_rate:.0%}; ppl {rv.perplexity}")
 
                     if k == primary_k:
-                        pd.DataFrame([rep.to_row()]).to_csv(out / f"{model_key}_edit_lora.csv", index=False)
-                        # examples: edited continuations vs the captured baseline ones
+                        # examples: edited continuations vs the captured baseline ones (TEST prompts)
                         ex = []
-                        for ep in eval_prompts[:8]:
+                        for ep in test_prompts[:8]:
                             s = score_refusal(edited, ep, generate_continuation=True)
-                            row = {"prompt": ep, **examples_clean.get(ep, {}),
-                                   "edited_continuation": s.continuation.strip(),
-                                   "edited_refused": bool(s.refused_regex)}
-                            ex.append(row)
+                            ex.append({"prompt": ep, **examples_clean.get(ep, {}),
+                                       "edited_continuation": s.continuation.strip(),
+                                       "edited_refused": bool(s.refused_regex)})
                         save_jsonl(ex, out / f"{model_key}_edit_examples.jsonl")
                         if DO_REPATCH:
                             def _rp():
@@ -367,7 +391,7 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                                     save_to=str(out / f"{model_key}_edit_repatch_heatmap.png"),
                                 )
                             _try("repatch", _rp)
-                        # T1.1: long-form generalization on the edited model
+                        # T1.1: long-form generalization on the edited model (HarmBench, cross-dataset)
                         if DO_GENERALIZATION and gen_prompts:
                             def _gen():
                                 gen_rows.extend(deep_eval(edited, gen_prompts, gen_cats,
@@ -391,17 +415,30 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                     _gpu_gc()
             _try(f"lora_k{k}", _lora)
 
-        # ── F1b head-count sweep artifact (refusal-flip + ΔPPL vs #heads) ──────
-        lora_rows = [r for r in rows if str(r["label"]).startswith("lora_k")]
-        if lora_rows:
-            sweep = pd.DataFrame(lora_rows)
-            sweep["k"] = sweep["label"].str.replace("lora_k", "", regex=False).astype(int)
-            sweep = sweep.sort_values("k")
+        # ── select chosen k on VAL (smallest reaching the refusal target), else primary ──
+        val_by_k = {r["k"]: r["refusal_rate"] for r in sweep_rows}
+        hit = [k for k in sorted(val_by_k) if val_by_k[k] <= SELECT_REFUSAL_THRESH]
+        chosen_k = (hit[0] if hit else
+                    (primary_k if primary_k in test_rows_by_k else
+                     (max(test_rows_by_k) if test_rows_by_k else None)))
+        summary["chosen_k"] = chosen_k
+        log(f"[{model_key}] chosen k (selected on val) = {chosen_k}")
+
+        # ── headline lora rows come from TEST (full curve + the chosen row) ──
+        for k in sorted(test_rows_by_k):
+            rows.append({**test_rows_by_k[k], "chosen": (k == chosen_k)})
+        if chosen_k is not None:
+            pd.DataFrame([{**test_rows_by_k[chosen_k], "chosen": True}]).to_csv(
+                out / f"{model_key}_edit_lora.csv", index=False)
+
+        # ── F1b head-count sweep artifact (VAL selection curve) ──
+        if sweep_rows:
+            sweep = pd.DataFrame(sweep_rows).sort_values("k")
             sweep.to_csv(out / f"{model_key}_edit_headcount_sweep.csv", index=False)
             base_refusal = next((r["refusal_rate"] for r in rows if r["label"] == "baseline"), float("nan"))
             _try("headcount_plot", lambda: plot_k_sweep(
                 sweep["k"].tolist(), sweep["refusal_rate"].tolist(), base_refusal,
-                title=f"{spec.key}: refusal vs #heads retrained (LoRA)",
+                title=f"{spec.key}: refusal vs #heads retrained (LoRA, val)",
                 save_to=str(out / f"{model_key}_edit_headcount_sweep.png"),
             ))
 
@@ -419,11 +456,12 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                     log(f"[{model_key}] minimal-edit rank={r} steps={st} (k={pk})")
                     ed = edit_and_load(spec, heads_all[:pk], c2, train_pairs, device=DEVICE, log=log)
                     try:
-                        rep = evaluate_edited_model(ed, f"r{r}_s{st}", eval_prompts, None, ppl_texts)
+                        rep = evaluate_edited_model(ed, f"r{r}_s{st}", val_prompts, None, ppl_texts)
                         dppl = (100.0 * (rep.perplexity - base_ppl0) / base_ppl0
                                 if (base_ppl0 and rep.perplexity) else None)
                         msweep.append({"rank": r, "steps": st, "refusal_rate": rep.refusal_rate,
-                                       "perplexity": rep.perplexity, "perplexity_pct_change": dppl})
+                                       "perplexity": rep.perplexity, "perplexity_pct_change": dppl,
+                                       "split": "val"})
                     finally:
                         ed = None
                         _gpu_gc()
@@ -437,7 +475,7 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
             ed = edit_roundtrip_and_load(spec, heads_all[:pk], cfg, train_pairs, harm_txt,
                                          device=DEVICE, log=log)
             try:
-                rep = evaluate_edited_model(ed, "roundtrip", eval_prompts, jb_prompts, ppl_texts)
+                rep = evaluate_edited_model(ed, "roundtrip", test_prompts, jb_prompts, ppl_texts)
                 base_ref = next((r["refusal_rate"] for r in rows if r["label"] == "baseline"), None)
                 removed = next((r["refusal_rate"] for r in rows if r["label"] == f"lora_k{pk}"), None)
                 pd.DataFrame([
@@ -549,6 +587,8 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
 
     summary["status"] = "ok"
     summary["seconds"] = round(time.time() - t0, 1)
+    summary["splits"] = {"train": len(train_split), "val": len(val_split), "test": len(test_split),
+                         "seed": SEED, "chosen_k": summary.get("chosen_k")}
     summary["rows"] = rows
     (out / "_EDIT_DONE.json").write_text(json.dumps(summary, indent=2, default=str))
     return summary

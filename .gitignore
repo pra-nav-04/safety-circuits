@@ -40,3 +40,7 @@ kaggle/kernel.ipynb
 
 # Editing-run staging zips (extract into results/editing*/<model>/ instead of committing the zip)
 results/**/*.zip
+
+# Bender HPC: local reference docs (PDFs) and cluster run outputs
+bender_documentation/
+sc-out/

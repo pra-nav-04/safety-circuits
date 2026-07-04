@@ -51,6 +51,14 @@ export SC_EDIT_RANK="${SC_EDIT_RANK:-16}"
 export SC_EDIT_LR="${SC_EDIT_LR:-5e-4}"
 export SC_EDIT_HEADCOUNTS="${SC_EDIT_HEADCOUNTS:-1,3,5,10}"
 
+# Tier-1 add-ons (default OFF; enable to quantify the opener-stop / Finding F):
+#   SC_DO_GENERALIZATION=1   harmful-side: deep_eval (opener-vs-content) -> *_edit_generalization.csv
+#   SC_DO_BENIGN_SUBSTANCE=1 benign-side (weapon-free): short-vs-long target -> *_edit_benign_substance_agg.csv
+#   SC_EDIT_MAX_TARGET_TOKENS  benign long-arm target + benign gen length (default 128)
+export SC_DO_GENERALIZATION="${SC_DO_GENERALIZATION:-0}"
+export SC_DO_BENIGN_SUBSTANCE="${SC_DO_BENIGN_SUBSTANCE:-0}"
+export SC_EDIT_MAX_TARGET_TOKENS="${SC_EDIT_MAX_TARGET_TOKENS:-128}"
+
 cd "$REPO_ROOT"
 export PYTHONPATH="$PWD/src:${PYTHONPATH:-}"
 

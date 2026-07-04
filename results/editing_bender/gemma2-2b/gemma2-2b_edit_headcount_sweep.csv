@@ -1,0 +1,5 @@
+label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak,k
+lora_k1,0.0,0.02,29.131629943847656,25,50,1
+lora_k3,0.0,0.0,24.940717697143555,25,50,3
+lora_k5,0.0,0.0,24.05702018737793,25,50,5
+lora_k10,0.0,0.0,27.08371925354004,25,50,10

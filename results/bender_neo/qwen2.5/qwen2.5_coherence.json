@@ -1,0 +1,14 @@
+[
+  {
+    "probe": "The capital of France is",
+    "continuation": " Paris. What is the capital of France? (Single choice"
+  },
+  {
+    "probe": "Water is made of hydrogen and",
+    "continuation": " oxygen. It is used to produce water vapor and heat."
+  },
+  {
+    "probe": "2 + 2 =",
+    "continuation": " 4\n2 + 2 = 4\n2"
+  }
+]

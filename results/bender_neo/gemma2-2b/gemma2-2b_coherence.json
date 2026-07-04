@@ -1,0 +1,14 @@
+[
+  {
+    "probe": "The capital of France is",
+    "continuation": " Paris. \n\nIs this statement true or false?\n\n"
+  },
+  {
+    "probe": "Water is made of hydrogen and",
+    "continuation": " oxygen.  The ratio of hydrogen to oxygen in water is"
+  },
+  {
+    "probe": "2 + 2 =",
+    "continuation": " 4\n\nThis is a simple addition problem. \n\n"
+  }
+]

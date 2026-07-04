@@ -1,0 +1,14 @@
+[
+  {
+    "probe": "The capital of France is",
+    "continuation": " Paris. The Eiffel Tower is located in Paris."
+  },
+  {
+    "probe": "Water is made of hydrogen and",
+    "continuation": " oxygen. The chemical formula for water is H2O."
+  },
+  {
+    "probe": "2 + 2 =",
+    "continuation": " 4\n2 x 2 = 4\n2"
+  }
+]

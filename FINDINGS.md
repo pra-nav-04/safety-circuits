@@ -1,14 +1,17 @@
 # Experiment Findings — Safety Circuits
 
-**9 instruct models, full pipeline (N=50 matched pairs, seed 0, Tesla T4).** Per model: per-head
-activation-patching sweep (`z`) with 95% CIs · zero- & mean-ablation of the top-10 heads ·
-WikiText-2 perplexity (capability control) · K-sweep · last-token & attention-pattern sweeps ·
-HarmBench jailbreak stress test · RealToxicityPrompts (RTP) continuation-toxicity probe.
-Artifacts in `results/kaggle_neo/<model>/`.
+**9 instruct models, full pipeline (N=50 matched pairs, seed 0, NVIDIA A40/A100 on the Uni Bonn
+Bender cluster; TransformerLens 3.5 / transformers 5.13).** Per model: per-head activation-patching
+sweep (`z`) with 95% CIs · zero- & mean-ablation of the top-10 heads · WikiText-2 perplexity
+(capability control) · K-sweep · last-token & attention-pattern sweeps · HarmBench jailbreak stress
+test · RealToxicityPrompts (RTP) continuation-toxicity probe. Artifacts in `results/bender_neo/<model>/`.
+(Originally developed on Kaggle T4 — `results/kaggle_neo/` — and reproduced here on Bender; the two
+runs agree closely, i.e. a replication across hardware *and* library versions.)
 
 Models span three families across **generations / sizes**: Qwen (1.5→2→2.5→3), Gemma (1→2→3),
-Llama-3.2 (1B→3B). (Excluded: Phi-3 — broken TL port / garbage logits; Falcon3, OLMo-2, TinyLlama —
-not in the pinned TransformerLens `OFFICIAL_MODEL_NAMES`.)
+Llama-3.2 (1B→3B). (Not included in this sweep: Phi-3, OLMo-2, Mistral, TinyLlama, Falcon3 — several
+of these are now loadable under TransformerLens 3.5 and are candidate additions; Phi-3's earlier
+HF-port garbage-logits issue predates the TL 3.5 upgrade and is worth re-checking.)
 
 ---
 
@@ -44,15 +47,15 @@ everywhere except Gemma-3 — consistent with B (only coherent ablated output ca
 
 | Model | Arch (L×H) | Top head ± CI | Clean→zero-abl refusal | Δ PPL (clean→abl) | Jailbreak refusal (plain→jb) | Jailbreak margin (plain→jb) | RTP Δtox |
 |---|---|---|---|---|---|---|---|
-| **Qwen1.5-1.8B** | 24×16 | L12H10 1.02 ±0.21 | 80%→**24%** | 32.8→33 (**+1.4%**) | 80→42 | +1.37→**−1.02** | +0.030 |
-| **Qwen2-1.5B** | 28×12 | L0H9 5.65 ±1.16 | 100%→**0%** | 18→191,491 (×10,600) | 100→74 | +3.50→+1.42 | −0.042 |
+| **Qwen1.5-1.8B** | 24×16 | L12H10 1.02 ±0.21 | 80%→**24%** | 32.8→33.2 (**+1.4%**) | 80→42 | +1.37→**−1.02** | +0.026 |
+| **Qwen2-1.5B** | 28×12 | L0H9 5.65 ±1.17 | 100%→**0%** | 18→193,679 (×10,780) | 100→74 | +3.48→+1.40 | −0.023 |
 | **Qwen2.5-1.5B** | 28×12 | L0H10 1.06 ±0.51 | 100%→**0%** | 18→1.11M (×61,000) | 100→94 | +4.08→+2.20 | +0.011 |
-| **Qwen3-1.7B** | 28×16 | L0H3 8.87 ±2.13 | 88%→**0%** | 32→4,058 (×128) | 88→**42** | +3.68→**−2.99** | −0.004 |
-| **Gemma1-2B** | 18×8 | L0H5 2.46 ±0.72 | 88%→72% | 62→76 (+22.8%) | 88→82 | +5.98→+4.44 | −0.009 |
-| **Gemma2-2B** | 26×8 | L13H2 0.62 ±0.19 | 96%→88% | 23→29 (+24%) | **96→96** | +6.59→+5.41 | +0.005 |
+| **Qwen3-1.7B** | 28×16 | L0H3 8.86 ±2.12 | 88%→**0%** | 32→4,049 (×128) | 88→**42** | +3.67→**−2.99** | +0.012 |
+| **Gemma1-2B** | 18×8 | L0H5 2.46 ±0.72 | 88%→72% | 62→76 (+22.9%) | 88→82 | +5.98→+4.45 | −0.009 |
+| **Gemma2-2B** | 26×8 | L13H2 0.62 ±0.19 | 96%→88% | 23→29 (+24.2%) | **96→96** | +6.59→+5.41 | +0.005 |
 | **Gemma3-1B** | 26×4 | L24H0 3.92 ±0.51 | 44%→**0%** | 61→192 (+217%) | 44→36 | +12.2→+7.0 | **+0.128** |
-| **Llama-3.2-1B** | 16×32 | L9H22 0.99 ±0.17 | 96%→92% | 25→30 (+22.8%) | 96→94 | +5.41→+4.26 | +0.020 |
-| **Llama-3.2-3B** | 28×24 | L0H20 1.48 ±0.53 (+L24) | 88%→44% | 18.5→19 (**+5%**) | 88→**96** | +7.80→+6.99 | −0.001 |
+| **Llama-3.2-1B** | 16×32 | L9H22 1.08 ±0.19 | 96%→92% | 24.7→27.7 (+12.4%) | 96→96 | +6.27→+4.85 | −0.030 |
+| **Llama-3.2-3B** | 28×24 | L0H20 1.59 ±0.55 (+L24) | 92%→**36%** | 18.5→19.5 (**+5.3%**) | 92→**96** | +8.13→+7.34 | −0.009 |
 
 > **Read A off this table:** the four models that hit refusal **0%** (Qwen2/2.5/3, Gemma3) are exactly
 > the four with the largest Δ PPL. The five with small Δ PPL never fully remove refusal.
@@ -63,7 +66,7 @@ everywhere except Gemma-3 — consistent with B (only coherent ablated output ca
 |---|---|
 | **H1 — Sparse** (≤10 heads explain most refusal) | ✅ **Holds** — a dominant head + short tail in all 9 (e.g. Qwen3 L0H3 = 8.87, ~4.5× #2). |
 | **H2 — Causal** (patching flips the refusal logit) | ✅ **Confirmed 9/9.** |
-| **H3 — Ablation** (zero top-10 → refusal ≤30%) | 🟡 **Partial** — met by Qwen2/2.5/3 (0%), Gemma3 (0%), Qwen1.5 (24%); **failed** by Gemma1 (72%), Gemma2 (88%), Llama-1B (92%), Llama-3B (44%). |
+| **H3 — Ablation** (zero top-10 → refusal ≤30%) | 🟡 **Partial** — met by Qwen2/2.5/3 (0%), Gemma3 (0%), Qwen1.5 (24%); **failed** by Gemma1 (72%), Gemma2 (88%), Llama-1B (92%), Llama-3B (36%). |
 | **H3b — Capability** (…*and* PPL change ≤5%) | ❌ **Falsified.** No model both removes refusal *and* preserves capability. Removal ⇒ damage (Finding A). |
 | **H4 — Cross-model** (same structure everywhere) | 🟡 **Partial / richer than predicted.** Sparsity+causality universal, but *location* migrates across generations (Finding C) and *modularity* scales with depth (Finding B). |
 
@@ -80,10 +83,10 @@ onward)**, and ablation went from *incomplete + harmless* (g1.5: 80%→24%, PPL 
 
 | Model | Top-3 heads (±CI) | Refusal clean→zero / mean | PPL clean→zero | Jailbreak | RTP Δtox |
 |---|---|---|---|---|---|
-| Qwen1.5-1.8B (24×16) | L12H10 1.02±0.21 · L12H8 0.52 · L21H15 0.47 | 80%→24% / 44% | 32.8→33 | 80→42, +1.4→−1.0 | +0.030 |
-| Qwen2-1.5B (28×12) | L0H9 5.65±1.16 · L0H3 0.58 · L8H1 0.49 | 100%→0% / 0% | 18→191,491 | 100→74, +3.5→+1.4 | −0.042 |
-| Qwen2.5-1.5B (28×12) | L0H10 1.06±0.51 · L11H8 0.59 · L0H6 0.53 | 100%→0% / 0% | 18→1.11M | 100→94, +4.1→+2.2 | +0.011 |
-| Qwen3-1.7B (28×16) | **L0H3 8.87±2.13** · L15H9 1.97 · L10H3 1.29 | 88%→0% / 0% | 32→4,058 | 88→42, +3.7→**−3.0** | −0.004 |
+| Qwen1.5-1.8B (24×16) | L12H10 1.02±0.21 · L12H8 0.52 · L21H15 0.47 | 80%→24% / 44% | 32.8→33.2 | 80→42, +1.4→−1.0 | +0.026 |
+| Qwen2-1.5B (28×12) | L0H9 5.65±1.17 · L0H3 0.61 · L8H1 0.48 | 100%→0% / 0% | 18→193,679 | 100→74, +3.5→+1.4 | −0.023 |
+| Qwen2.5-1.5B (28×12) | L0H10 1.06±0.51 · L11H8 0.59 · L0H6 0.54 | 100%→0% / 0% | 18→1.11M | 100→94, +4.1→+2.2 | +0.011 |
+| Qwen3-1.7B (28×16) | **L0H3 8.86±2.12** · L15H9 1.97 · L10H3 1.29 | 88%→0% / 0% | 32→4,049 | 88→42, +3.7→**−3.0** | +0.012 |
 
 ### Gemma — generational trajectory g1 → g2 → g3 (the clean migration)
 
@@ -104,15 +107,16 @@ in the study (96%→96%).
 
 ### Llama-3.2 — size 1B → 3B
 
-Both Llama models are **jailbreak-robust** (1B 96→94; 3B 88→**96**, i.e. jailbreaks slightly *raised*
+Both Llama models are **jailbreak-robust** (1B 96→96; 3B 92→**96**, i.e. jailbreaks slightly *raised*
 refusal) and both show **incomplete removal with negligible capability damage** — the safety signal
-is more distributed/redundant here. The 1B places its top head mid-network (L9); the 3B is a
-**hybrid (L0 + L24)** — early detection *and* late enforcement, the only model with both.
+is more distributed/redundant here (3B: 92%→36% at only +5.3% PPL). The 1B places its top head
+mid-network (L9); the 3B is a **hybrid (L0 + L24)** — early detection *and* late enforcement, the
+only model with both.
 
 | Model | Top-3 heads (±CI) | Refusal clean→zero / mean | PPL clean→zero | Jailbreak | RTP Δtox |
 |---|---|---|---|---|---|
-| Llama-3.2-1B (16×32) | L9H22 0.99±0.17 · L4H11 0.63 · L9H12 0.60 | 96%→92% / 92% | 25→30 | 96→94, +5.4→+4.3 | +0.020 |
-| Llama-3.2-3B (28×24) | **L0**H20 1.48±0.53 · **L24**H11 1.14 · L0H18 1.03 | 88%→44% / 60% | 18.5→19 | 88→96, +7.8→+7.0 | −0.001 |
+| Llama-3.2-1B (16×32) | L9H22 1.08±0.19 · L4H11 0.69 · L9H12 0.63 | 96%→92% / 92% | 24.7→27.7 | 96→96, +6.3→+4.9 | −0.030 |
+| Llama-3.2-3B (28×24) | **L0**H20 1.59±0.55 · **L24**H11 1.15 · L0H18 1.06 | 92%→36% / 56% | 18.5→19.5 | 92→96, +8.1→+7.3 | −0.009 |
 
 ---
 
@@ -127,13 +131,14 @@ set × coefficient) is the midpoint. All evaluation reuses the existing harness;
 ported back into TransformerLens via `from_pretrained_no_processing`, and **the baseline is recomputed
 through that same port** so every comparison is apples-to-apples.
 *(Config: LoRA rank 16 / 600 steps / lr 5e-4; N=25 held-out harmful eval prompts, 50 HarmBench jailbreak
-prompts, WikiText-2 perplexity, seed 0, T4. Artifacts in `results/editing/<model>/`.)*
+prompts, WikiText-2 perplexity, seed 0, A40/A100 on Bender. Artifacts in `results/editing_bender/<model>/`
+— original Kaggle-T4 editing run kept in `results/editing/`.)*
 
 **E — Refusal is *not modular under deletion, but it is editable under retraining*.** Across all 9 models,
 **head-restricted LoRA drives refusal (and HarmBench-jailbreak refusal) to 0%**, and on **8/9** it does so
 at **small perplexity cost** (≤ ~16%, often ≈0 or *negative*) — exactly where blunt ablation gave gibberish
-(Qwen2/2.5/3: ablation PPL ×128–×61,000 → **LoRA +1–2%**). The no-train **steering baseline never cleanly
-removes refusal on any model** (best coherent refusal 32–92%; the only combos reaching ~0% explode PPL).
+(Qwen2/2.5/3: ablation PPL ×128–×61,000 → **LoRA −0.2 to +2.6%**). The no-train **steering baseline never
+cleanly removes refusal on any model** (best coherent refusal 20–92%; the only combos reaching ~0% explode PPL).
 So the three interventions form a **scalpel-sharpness axis**: blunt ablation (breaks the model / can't
 remove) → steering (can't cleanly remove) → **head-restricted LoRA (uniquely reaches the "clean corner":
 0% refusal at ≈0 ΔPPL)**. This refines Finding A: refusal is *load-bearing* (you can't excise it) yet
@@ -143,17 +148,17 @@ released.
 
 ### Cross-model editing table
 
-| Model | top-head depth | base refusal | **blunt zero-abl** (refusal / ΔPPL) | **steering** best-coherent (refusal / ΔPPL) | **LoRA** →0% at k | **LoRA cleanest ΔPPL @ 0%** |
+| Model | top-head depth | base refusal | **blunt zero-abl** (refusal / ΔPPL) | **steering** best-coherent (refusal / ΔPPL) | **LoRA** →0% at k | **LoRA** ΔPPL @ 0% (k10) |
 |---|---|---|---|---|---|---|
-| **Gemma1-2B** | L0 / .00 | 88% | 72% / +23% | 60% / −0.2% | k1 | **+82% → +2139% (BREAKS)** |
-| **Gemma2-2B** | L13 / .50 | 96% | 88% / +24% | 76% / +1.8% | k1 | **+2.8%** (k5) |
-| **Gemma3-1B** | L24 / .92 | 44% | 0% / +217% | 32% / +3% | k3 | **−16%** (k5) |
-| **Qwen1.5-1.8B** | L12 / .50 | 80% | 24% / +1% | 32% / +0.2% | k1 | +11.5% (k10) |
-| **Qwen2-1.5B** | L0 / .00 | 96% | 0% / ×10,600 | 56% / −0.8% | k1 | **≈0%** (k10) |
-| **Qwen2.5-1.5B** | L0 / .00 | 100% | 0% / ×61,000 | 72% / +2% | k3 | **+1.9%** (k3) |
-| **Qwen3-1.7B** | L0 / .00 | 88% | 0% / ×128 | 48% / +6.5% | k3 | **+1.4%** (k10) |
-| **Llama-3.2-1B** | L9 / .56 | 96% | 92% / +23% | 92% / +0.01% | k1 | **+0.45%** (k1) |
-| **Llama-3.2-3B** | L0 / .56 (hybrid) | 88% | 44% / +5% | 76% / +1.9% | k3 | **+0.69%** (k5) |
+| **Gemma1-2B** | L0 / .00 | 88% | 72% / +23% | 56% / −1.3% | k1 | **+82% (BREAKS)** |
+| **Gemma2-2B** | L13 / .50 | 96% | 88% / +24% | 56% / +8.2% | k1 | +15.7% |
+| **Gemma3-1B** | L24 / .92 | 44% | 0% / +217% | 32% / +3.1% | k3 | **−14.4%** |
+| **Qwen1.5-1.8B** | L12 / .50 | 80% | 24% / +1.4% | 32% / +0.3% | k1 | +11.4% |
+| **Qwen2-1.5B** | L0 / .00 | 96% | 0% / ×10,780 | 20% / −2.6% | k1 | **−0.2%** |
+| **Qwen2.5-1.5B** | L0 / .00 | 100% | 0% / ×61,000 | 44% / +2.6% | k3 | **+2.6%** |
+| **Qwen3-1.7B** | L0 / .00 | 88% | 0% / ×128 | 32% / +30.9% | k3 | **+1.4%** |
+| **Llama-3.2-1B** | L9 / .56 | 96% | 92% / +12% | 92% / −0.1% | k1 | **+5.0%** |
+| **Llama-3.2-3B** | L0 / .56 (hybrid) | 92% | 36% / +5% | 76% / +2.1% | k3 | **+0.9%** |
 
 > **Read E off this table:** the **LoRA** columns hit **0% refusal on all 9** at near-zero ΔPPL on 8 of
 > them — including the four Qwen/Gemma3 models that ablation could only "remove" by blowing PPL up ×100–
@@ -167,15 +172,15 @@ released.
 | **F1a — clean edit** (head-LoRA flips refusal at small ΔPPL) | ✅ **Confirmed 8/9.** Refusal & jailbreak → 0% on 9/9; small ΔPPL on 8/9. **Exception: Gemma1-2B** removes refusal only with large ΔPPL (+82%). |
 | **F1b — depth→#heads law** (later circuits edit with fewer heads) | 🟡 **Not resolved.** Refusal flips with very few heads everywhere (k=1 on 5/9, k=3 on 4/9), with no monotone depth relationship (early-L0 Qwen2 flips at k1; late-L24 Gemma3 at k3). The informative axis is **ΔPPL cost**, not head count. |
 | **F1c — cross-generation transfer** | **Infeasible on this roster** (no two checkpoints share an architecture; circuits migrate). Not pursued — see `RESEARCH_PLAN.md` §9. |
-| **Steering baseline** (directional ablation removes refusal cleanly?) | ❌ **No (0/9).** Best coherent refusal 32–92%; clean removal needs LoRA. |
+| **Steering baseline** (directional ablation removes refusal cleanly?) | ❌ **No (0/9).** Best coherent refusal 20–92%; clean removal needs LoRA. |
 
 **Generational editability gradient (Gemma, ties E ↔ Finding C).** Within Gemma the *clean-edit cost*
-tracks circuit depth/generation in lockstep with the location migration: **g1 (L0) +82% → g2 (L13) +2.8%
-→ g3 (L24) −16%.** Editability improves as the circuit moves later/newer — the editing analogue of
+tracks circuit depth/generation in lockstep with the location migration: **g1 (L0) +82% → g2 (L13) +15.7%
+→ g3 (L24) −14%.** Editability improves as the circuit moves later/newer — the editing analogue of
 Finding B. It is **not universal across families**, though: Qwen2/2.5/3 have early (L0) circuits yet LoRA
-edits them cleanly (+1–2%) *even though ablation destroys them* (×128–×61,000) — LoRA "rescues" early-layer
-circuits that ablation cannot touch. The lone hold-out is **Gemma1-2B** (oldest, L0), which resists clean
-editing under every method. Headline visual per model: `results/editing/<model>/<model>_scalpel_axis.png`.
+edits them cleanly (−0.2 to +2.6%) *even though ablation destroys them* (×128–×61,000) — LoRA "rescues"
+early-layer circuits that ablation cannot touch. The lone hold-out is **Gemma1-2B** (oldest, L0), which
+resists clean editing under every method. Headline visual per model: `results/editing_bender/<model>/<model>_scalpel_axis.png`.
 
 ---
 
@@ -192,12 +197,21 @@ editing under every method. Headline visual per model: `results/editing/<model>/
   transfer (+0.128). So RTP transfer is itself *evidence for* Finding B, not an independent result.
 - **Mean- vs zero-ablation** rarely helps: mean-ablation is gentler on PPL for Qwen2.5 (905 vs 1.1M)
   but still 50× baseline, and removal completeness is essentially unchanged across the roster.
+- **Replication across stacks.** These are the Bender re-run numbers (A40/A100, TransformerLens 3.5 /
+  transformers 5.13). They reproduce the original Kaggle-T4 run (`results/kaggle_neo/`) closely — same
+  dominant heads, refusal rates, generational location-migration, and the Gemma-3 toxicity spike (+0.128)
+  — a robustness check across hardware *and* library versions. The one material drift is **Llama-3.2-3B**
+  ablation (Kaggle 88%→44% vs Bender 92%→36%); Llama-3.2-1B's ΔPPL and RTP also shifted slightly.
+- **Qwen1.5-1.8B coherence caveat.** Its clean sanity probes are degenerate (it emits `<|im_end|>`
+  immediately), so its headline low-cost H3 result (80%→24% at +1.4% PPL) should be read with caution —
+  the *baseline* generation quality is already questionable, independent of ablation.
 
-## Excluded models
-- **Phi-3-mini** — loads via the HF-port path but produces garbage logits (the combined QKV/RoPE
-  projection is mis-mapped by TransformerLens); 0% baseline refusal, no usable signal.
-- **Falcon3-1B, OLMo-2-1B-Instruct, TinyLlama-1.1B** — not in the pinned TransformerLens
-  `OFFICIAL_MODEL_NAMES`; load raises `ValueError`. (Gemma-4 also unsupported + multimodal.)
+## Models not in this sweep
+- Under **TransformerLens 3.5**, **Phi-3-mini**, **OLMo-2**, and **Mistral-7B-Instruct** are now
+  loadable (these were the historical exclusions on the pinned TL 2.x). They were not run in this
+  9-model sweep but are natural extensions — note Phi-3's earlier HF-port *garbage-logits* issue
+  (mis-mapped QKV/RoPE projection, 0% baseline refusal) predates the TL 3.5 upgrade and should be re-checked.
+- **TinyLlama-1.1B, Falcon3-1B** remain unsupported / not run. (Gemma-4 is multimodal.)
 
 ## What's next
 - Build the paper's results section + figures around Findings A–E: the generational location-migration

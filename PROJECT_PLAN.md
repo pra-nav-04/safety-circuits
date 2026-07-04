@@ -2,7 +2,7 @@
 
 > **Course:** MA-INF 4330 — Lab Explainable AI and Applications, University of Bonn
 > **Student:** Pranav Yadav · **Repo:** `safety-circuits`
-> **Last updated:** 2026-06-07
+> **Last updated:** 2026-07-05 (study re-run on the Uni Bonn Bender cluster — now canonical)
 >
 > Living tracker. Companion to `RESEARCH_PLAN.md` (hypotheses/method), `FINDINGS.md` (results), and `paper/paper.md` (draft). Check off items as they land.
 
@@ -10,13 +10,13 @@
 
 ## TL;DR
 
-- **Experiments + code + findings: ✅ DONE.** All **9 models** (Qwen ×4, Gemma ×3, Llama ×2) ran at **N=50** with the full pipeline; `FINDINGS.md` has four synthesized findings; the analysis code/tests are complete.
+- **Experiments + code + findings: ✅ DONE.** All **9 models** (Qwen ×4, Gemma ×3, Llama ×2) ran at **N=50** with the full pipeline — mapping **and** §9 editing, re-run on the **Bender** cluster (A40/A100, TL 3.5) and closely replicating the original Kaggle run; `FINDINGS.md` has the synthesized findings; the analysis code/tests are complete.
 - **Figures + paper Results: ✅ DONE.** `scripts/make_figures.py` → 5 figures + `summary_table.csv`; `paper/paper.md` has the Results section fully drafted.
 - **What's left is the GRADE: writing & slides** (70% paper + 30% defence). Remaining = **midterm slides (19/06)**, the rest of the paper sections, final slides (24/07), submission (31/08).
 - **The story got stronger than the original hypotheses:** refusal is *concentrated but not modular* — and that's the headline, not a clean "safety switch."
 
 ### Locked decisions
-- **Model set (final):** Qwen1.5-1.8B, Qwen2-1.5B, Qwen2.5-1.5B, Qwen3-1.7B · Gemma1-2B, Gemma2-2B, Gemma3-1B · Llama-3.2-1B, Llama-3.2-3B — **within-family generational sweeps**. *(The earlier "fix Phi-3 + run Falcon3/OLMo-2" plan was dropped — none are in the pinned TransformerLens `OFFICIAL_MODEL_NAMES`; documented exclusions.)*
+- **Model set (final):** Qwen1.5-1.8B, Qwen2-1.5B, Qwen2.5-1.5B, Qwen3-1.7B · Gemma1-2B, Gemma2-2B, Gemma3-1B · Llama-3.2-1B, Llama-3.2-3B — **within-family generational sweeps**. *(The earlier "fix Phi-3 + run Falcon3/OLMo-2" plan was dropped — they were unsupported on the pinned TL 2.x; several now load under TL 3.5 and are candidate future additions.)*
 - **Ambition:** publication-grade — all stretch experiments run.
 - **Paper:** ~8-page conference/workshop style (markdown draft → LaTeX later).
 
@@ -39,7 +39,7 @@
 ### A1. Infrastructure & code (✅ complete)
 | Component | File | Status |
 |---|---|---|
-| Model configs (8 models, refusal tokens, dtype, RoPE flags) | `src/safety_circuits/config.py` | ✅ |
+| Model configs (9 models, refusal tokens, dtype, RoPE flags) | `src/safety_circuits/config.py` | ✅ |
 | Model loading (TL-native + HF fallback port) | `src/safety_circuits/models.py` | ✅ |
 | Data loaders: AdvBench, HarmBench, RTP, HH-RLHF | `src/safety_circuits/data.py` | ✅ |
 | Matched-pair construction | `data.py:build_matched_pairs` | ✅ |
@@ -51,24 +51,25 @@
 | RTP toxicity probe + audit harness | `src/safety_circuits/{toxicity,audit}.py` | ✅ |
 | CLI `run-mvp` | `src/safety_circuits/cli.py` | ✅ |
 | Kaggle runner (full pipeline, multi-model, preflight) | `kaggle/run_experiment.py` | ✅ |
+| Bender HPC job scripts (env, prestage, smoke, sweep, edit) + runbook | `scripts/bender/`, `scripts/README_bender.md` | ✅ |
 | Figure generation | `scripts/make_figures.py` | ✅ |
 | Docker / Makefile / pyproject / smoke tests | repo root + `tests/` | ✅ |
 | Notebooks 01–06 | `notebooks/` | ✅ |
 
-### A2. Experiments run — all 9 at N=50, full pipeline (`FINDINGS.md`, `results/kaggle_neo/`)
+### A2. Experiments run — all 9 at N=50, full pipeline (`FINDINGS.md`, `results/bender_neo/`; Kaggle originals in `results/kaggle_neo/`)
 | Model | Arch | Top head | Refusal clean→zero-abl | Δ PPL | Jailbreak refusal (plain→jb) |
 |---|---|---|---|---|---|
 | Qwen1.5-1.8B | 24L×16H | L12H10 (mid) | 80%→24% | +1.4% | 80→42 |
-| Qwen2-1.5B | 28L×12H | L0H9 | 100%→0% | ×10,600 | 100→74 |
+| Qwen2-1.5B | 28L×12H | L0H9 | 100%→0% | ×10,780 | 100→74 |
 | Qwen2.5-1.5B | 28L×12H | L0H10 | 100%→0% | ×61,000 | 100→94 |
-| Qwen3-1.7B | 28L×16H | L0H3 (8.87) | 88%→0% | ×128 | 88→**42** |
+| Qwen3-1.7B | 28L×16H | L0H3 (8.86) | 88%→0% | ×128 | 88→**42** |
 | Gemma1-2B | 18L×8H | L0H5 | 88%→72% | +23% | 88→82 |
 | Gemma2-2B | 26L×8H | L13H2 (mid) | 96%→88% | +24% | **96→96** |
 | Gemma3-1B | 26L×4H | L24H0 (late) | 44%→0% | +217% | 44→36 |
-| Llama-3.2-1B | 16L×32H | L9H22 (mid) | 96%→92% | +23% | 96→94 |
-| Llama-3.2-3B | 28L×24H | L0H20 (+L24) | 88%→44% | +5% | 88→96 |
+| Llama-3.2-1B | 16L×32H | L9H22 (mid) | 96%→92% | +12% | 96→96 |
+| Llama-3.2-3B | 28L×24H | L0H20 (+L24) | 92%→36% | +5% | 92→96 |
 
-*(Excluded — not TL-supported / broken: Phi-3, Falcon3, OLMo-2, TinyLlama. See `FINDINGS.md`.)*
+*(Not in this sweep: Phi-3, OLMo-2, Mistral, Falcon3, TinyLlama — several now load under TL 3.5; candidate additions. See `FINDINGS.md`.)*
 
 ### A3. Hypothesis scorecard (final — see `FINDINGS.md`)
 - **H1 (sparse):** ✅ a dominant head + short tail in all 9.
@@ -164,9 +165,23 @@
 
 ---
 
-## Part G — Kaggle run recipe (one-shot, all models)
+## Part G — Run recipes
 
-`kaggle/run_experiment.py` is now a **multi-model orchestrator**: one kernel run loops
+### Bender cluster (canonical — parallel SLURM job array)
+On Bender each model runs on its **own GPU in parallel** (vs Kaggle's forced-sequential single T4), so the whole 9-model sweep finishes in roughly the time of the slowest model. Full runbook: `scripts/README_bender.md`.
+```bash
+ssh bender && cd safety-circuits              # git clone the first time
+bash scripts/bender/setup_env.sh              # conda env (run again inside an srun GPU job for CUDA torch)
+export HF_TOKEN=hf_...                         # gated gemma/llama + HarmBench
+bash scripts/bender/prestage.sh               # pre-download the 9 models + datasets
+sbatch scripts/bender/sweep.sbatch            # mapping study  → ~/sc-out/results/<model>/
+sbatch scripts/bender/edit.sbatch             # §9 editing     → ~/sc-out-edit/editing/<model>/
+```
+Then pull results into the repo: `rsync -az bender:sc-out/results/ results/bender_neo/` and `rsync -az bender:sc-out-edit/editing/ results/editing_bender/`. Same `SC_*` env-var interface as the Kaggle recipe below (`edit.sbatch` sets `SC_HEADS_DIR=results/bender_neo` so editing uses the Bender-localized heads).
+
+### Kaggle (original — one-shot, sequential)
+
+`kaggle/run_experiment.py` is a **multi-model orchestrator**: one kernel run loops
 **every model sequentially, cheapest-first** (single T4 → no parallelism), runs the full
 suite per model, **skips failures with a logged traceback**, flushes results as it goes,
 and zips everything. The kernel is a **thin bootstrap** (`kaggle/kernel.ipynb`) that

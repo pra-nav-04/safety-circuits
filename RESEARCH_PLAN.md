@@ -3,8 +3,10 @@
 > Pranav Yadav · MA-INF 4330 · University of Bonn
 > Working title: *Refusal circuits are concentrated but not modular.*
 >
-> **Updated 2026-06-07 to reflect the executed study** (models, method, verdicts). The original a-priori
-> plan — TinyLlama/Phi-3, Colab A100, 4-page report — is preserved in git history. Results live in
+> **Updated 2026-06-07 to reflect the executed study** (models, method, verdicts); **study re-run on the
+> Uni Bonn Bender cluster (A40/A100, TransformerLens 3.5 / transformers 5.13) 2026-07-05 — now the
+> canonical run**, closely replicating the original Kaggle-T4 results. The original a-priori plan —
+> TinyLlama/Phi-3, Colab A100, 4-page report — is preserved in git history. Results live in
 > `FINDINGS.md`; figures in `paper/figures/`; draft in `paper/paper.md`.
 
 ---
@@ -17,7 +19,7 @@ by ablation, and characterise how the circuit varies across model families and g
 
 Hypotheses & **verdicts** (9 instruct models: Qwen 1.5/2/2.5/3, Gemma 1/2/3, Llama-3.2 1B/3B):
 
-- **H1 (sparse):** ✅ **Confirmed.** A dominant head + short tail carries most of the refusal-logit margin in all 9 (e.g. Qwen3 L0H3 = 8.87 ± 2.13).
+- **H1 (sparse):** ✅ **Confirmed.** A dominant head + short tail carries most of the refusal-logit margin in all 9 (e.g. Qwen3 L0H3 = 8.86 ± 2.12).
 - **H2 (causal):** ✅ **Confirmed.** Patching a single head harmless→harmful flips the refusal logit in all 9.
 - **H3 (ablation removes refusal):** 🟡 **Partial** — top-10 zero-ablation drops refusal to ≤30% in 5/9 (Qwen2/2.5/3, Gemma-3, Qwen1.5).
 - **H3b (…while preserving capability, ΔPPL ≤ 5%):** ❌ **Falsified — and this is the headline.** Every model that *fully* removes refusal also suffers catastrophic perplexity blow-up (Qwen ×128–×61,000; output is gibberish, not compliance). **Refusal is causally concentrated but not modular** — the heads that gate it are load-bearing for general generation.
@@ -38,10 +40,11 @@ extension in §9 is the one deliberate exception).
 
 - **Models (9, three families × generations/sizes), all in TransformerLens `HookedTransformer`:**
   Qwen1.5-1.8B-Chat · Qwen2-1.5B · Qwen2.5-1.5B · Qwen3-1.7B · Gemma-1-2B · Gemma-2-2B · Gemma-3-1B ·
-  Llama-3.2-1B · Llama-3.2-3B. *(The proposal's TinyLlama/Phi-3 were dropped — TinyLlama under-refuses and
-  neither is in the pinned TL `OFFICIAL_MODEL_NAMES`; Falcon3/OLMo-2 likewise unsupported. Documented
-  exclusions in `FINDINGS.md`.)*
-- **Compute:** single **Kaggle T4** GPU; one model per session (RAM-bound), orchestrated by `kaggle/run_experiment.py`.
+  Llama-3.2-1B · Llama-3.2-3B. *(The proposal's TinyLlama/Phi-3 were dropped — TinyLlama under-refuses, and
+  Phi-3/Falcon3/OLMo-2 were unsupported on the pinned TL 2.x; several now load under TL 3.5 and are candidate
+  extensions. Documented in `FINDINGS.md`.)*
+- **Compute:** Uni Bonn **Bender** cluster (A40/A100), one model per GPU as a SLURM job array
+  (`scripts/bender/sweep.sbatch`, see `scripts/README_bender.md`); originally a single Kaggle T4. Orchestrated by `kaggle/run_experiment.py`.
 - **Determinism:** temperature 0, fixed seed (0), greedy decode for the first generated token. **N = 50** matched pairs per model.
 
 ### 2.2 Data
@@ -105,7 +108,8 @@ The notebooks `01–06` carry the executable thread (setup, data pipeline, refus
 ablation, metric audit); the production runs are driven by the multi-model orchestrator
 `kaggle/run_experiment.py`, which executes the full per-model suite (patch sweep + heatmap, zero & mean
 ablation + perplexity, K-sweep, last-token & attention-pattern sweeps, HarmBench jailbreak, RTP probe).
-Outcome per model: §2's metrics + artifacts in `results/kaggle_neo/<model>/`.
+Outcome per model: §2's metrics + artifacts in `results/bender_neo/<model>/` (canonical Bender run; the
+original Kaggle-T4 run is kept in `results/kaggle_neo/`).
 
 ---
 
@@ -146,7 +150,7 @@ conscious departure from the read-only stance of the main study, scoped to the e
 
 **Still out of scope (future work, in the Discussion):**
 - **Multi-axis safety** (deception, bias, PII) — the study commits to the **toxic-language** axis only.
-- **Models > 4B parameters** — compute budget (single T4) rules them out.
+- **Models > 4B parameters** — scoped out for the generational comparison; Bender's A40/A100 (48–80 GB) could now run larger checkpoints, a natural future extension.
 - SAE feature-decomposition and causal scrubbing — interesting but not pursued in this phase.
 
 ---
@@ -156,34 +160,35 @@ conscious departure from the read-only stance of the main study, scoped to the e
 | Risk | Outcome |
 |---|---|
 | TinyLlama barely refuses | ✅ Swapped to the Qwen/Gemma/Llama instruct families (under-refusal confirmed). |
-| Phi-3 not natively supported in TransformerLens | ✅ HF-port produces garbage logits (combined-QKV mis-map); **excluded** with a coherence-check diagnostic. |
-| Kaggle session limits on long sweeps | ✅ One model per session; per-model results flushed + zipped; resumable via `SC_MODELS`/`SC_SKIP_EXISTING`. |
+| Phi-3 not natively supported in TransformerLens | ✅ HF-port produces garbage logits (combined-QKV mis-map); **excluded** with a coherence-check diagnostic. (TL 3.5 now lists Phi-3 — worth re-checking.) |
+| Long sweeps exceed a single session / queue slot | ✅ On Bender, one model per GPU as a parallel SLURM array (`scripts/bender/sweep.sbatch`); per-model results flushed; resumable via `SC_MODELS`/`SC_SKIP_EXISTING`. (Originally: one model per Kaggle session.) |
 | Refusal metric is noisy | ✅ Dual logit+regex metric; per-prompt continuations saved (`*_examples.jsonl`); optional 50-prompt human audit harness. |
-| System-RAM OOM loading 2B fp32 / dual-copy ports | ✅ HF-port + `low_cpu_mem_usage`; fp16 where VRAM-bound (Gemma-2). |
+| System-RAM OOM loading 2B fp32 / dual-copy ports | ✅ HF-port + `low_cpu_mem_usage`; fp16 where VRAM-bound. On Bender's 48–80 GB GPUs this pressure is largely moot (the fp16 workarounds still run unchanged). |
 
 ---
 
 ## 8. Deliverables
 
-- This repo, reproducible on a single Kaggle T4 (one model per session). ✅
+- This repo, reproducible on the Uni Bonn Bender cluster (`scripts/bender/`) — or a single Kaggle T4. ✅
 - A ~8-page conference/workshop-style paper (`paper/paper.md` — Results drafted). 🟡 in progress.
 - The mechanistic-map figures (`paper/figures/`: per-head heatmaps, removal-vs-ΔPPL coupling, generational migration, jailbreak slope). ✅
-- `<model>_safety_heads.json` (top-K causal heads) per model in `results/kaggle_neo/`. ✅
+- `<model>_safety_heads.json` (top-K causal heads) per model in `results/bender_neo/` (Kaggle originals in `results/kaggle_neo/`). ✅
 - Midterm (19/06) + final (24/07) presentations. ◻ pending.
 
 ---
 
 ## 9. Future research — from *mapping* the circuit to *editing* it
 
-> **EXECUTED (2026-06-21), all 9 models — verdicts.** Full results + table in `FINDINGS.md` ("Editing
-> extension"); per-model artifacts in `results/editing/<model>/`.
+> **EXECUTED (2026-06-21), all 9 models; re-run on Bender 2026-07-05 (canonical) — verdicts.** Full
+> results + table in `FINDINGS.md` ("Editing extension"); per-model artifacts in
+> `results/editing_bender/<model>/` (original Kaggle-T4 run in `results/editing/`).
 > - **F1a (clean edit): ✅ confirmed 8/9.** Head-restricted LoRA drives refusal **and** HarmBench-jailbreak
 >   refusal → **0% on 9/9** at **small ΔPPL on 8/9** (often ≈0 or negative) — including the four models where
 >   blunt ablation only "removed" refusal by exploding PPL ×128–×61,000 (Qwen2/2.5/3) or ×3 (Gemma3).
 >   **Exception: Gemma1-2B** (oldest, L0 circuit) removes refusal only with large ΔPPL (+82%).
 > - **Generational editability gradient (new):** within Gemma the clean-edit cost tracks the circuit's depth
->   migration — **g1 (L0) +82% → g2 (L13) +2.8% → g3 (L24) −16%** — the editing analogue of Finding B.
-> - **Steering baseline: ❌ never cleanly removes refusal (0/9)** — best coherent refusal 32–92%; the only
+>   migration — **g1 (L0) +82% → g2 (L13) +15.7% → g3 (L24) −14%** — the editing analogue of Finding B.
+> - **Steering baseline: ❌ never cleanly removes refusal (0/9)** — best coherent refusal 20–92%; the only
 >   combos reaching ~0% blow up PPL. Confirms the **scalpel-sharpness axis**: blunt ablation → steering →
 >   **head-restricted LoRA is the only intervention that reaches the clean corner.**
 > - **F1b (depth→#heads law): 🟡 not resolved** at this granularity — refusal flips with very few heads
@@ -207,8 +212,8 @@ conscious departure from the read-only stance of the main study, scoped to the e
 > Kaggle T4, one model per session, as before.
 
 ### F1 (primary) — head-restricted LoRA "safety-head transplant"
-Take the heads already localized by the main study (`results/kaggle_neo/<model>/*_safety_heads.json`) — or
-a single sub-group of MLP neurons — as the **only** trainable target.
+Take the heads already localized by the main study (`results/bender_neo/<model>/*_safety_heads.json`, set
+via `SC_HEADS_DIR`) — or a single sub-group of MLP neurons — as the **only** trainable target.
 - **Method:** attach a LoRA restricted to the `W_Q/W_K/W_V/W_O` projection slices of those head indices
   (everything else frozen); train on a **harmful→comply / refusal-suppression** objective (affirmative
   continuation on AdvBench-style prompts); then **merge the low-rank delta back into just those heads** —
@@ -278,7 +283,7 @@ continuation, shown benignly), not by generating harmful text.
 
 Sharpening + stress-testing the editing result. All implemented as **opt-in** orchestrator blocks
 (`SC_DO_*` env flags, default off; the validated main pipeline is unchanged unless enabled); each writes
-its own per-model artifact under `results/editing/<model>/`.
+its own per-model artifact under `results/editing_bender/<model>/` (Tier 1/2 were left OFF in the canonical Bender run).
 
 | # | Direction | Question | Flag → artifact |
 |---|---|---|---|
@@ -301,5 +306,5 @@ its own per-model artifact under `results/editing/<model>/`.
 >   (`*_edit_direction_shift.csv`) to flag a safety-edited / jailbroken open-weight model.
 > - **Same-architecture transfer (F1c, redone)** — a genuine adapter-transfer test needs two fine-tunes of
 >   *one* base (well-defined merge); infeasible on the current 9-checkpoint roster (every arch differs).
-> - **Scale > 4B** parameters (compute-bound on a single T4).
+> - **Scale > 4B** parameters (was compute-bound on a single T4; now feasible on Bender's A40/A100).
 > - **Cross-lingual** refusal circuits — is refusal shared across languages or per-language?

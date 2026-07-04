@@ -11,12 +11,13 @@
 #SBATCH --time=0:45:00
 #SBATCH --gpus=1
 #SBATCH --ntasks=1
-#SBATCH --export=NONE
 #SBATCH --output=slurm-%x-%j.out
 
-# --export=NONE gives a clean env (avoids the Bender dual-stack MODULEPATH issue);
-# this line re-enables propagation to job steps. See the wiki "Job Environment" note.
-unset SLURM_EXPORT_ENV
+# NOTE: we deliberately do NOT use --export=NONE. Our env is a self-contained conda env and
+# torch is a generic manylinux wheel (portable across Bender's INTEL/AMD nodes), so the
+# dual-stack MODULEPATH issue doesn't apply — and --export=NONE starves the job of
+# PATH/module/conda (it produced a zero-byte log). We follow the wiki's conda job pattern:
+# source ~/.bashrc, then conda activate.
 
 set -euo pipefail
 SC_ENV="${SC_ENV:-sc}"

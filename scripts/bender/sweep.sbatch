@@ -13,10 +13,10 @@
 #SBATCH --gpus=1
 #SBATCH --ntasks=1
 #SBATCH --array=0-8
-#SBATCH --export=NONE
 #SBATCH --output=slurm-%x-%A_%a.out
 
-unset SLURM_EXPORT_ENV   # re-enable env propagation to job steps (see wiki Job Environment)
+# NOTE: no --export=NONE (see smoke.sbatch) — conda env + manylinux torch are portable,
+# and --export=NONE starves the job of PATH/module/conda.
 
 set -euo pipefail
 SC_ENV="${SC_ENV:-sc}"

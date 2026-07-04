@@ -65,7 +65,7 @@ if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
   python - <<'PY'
 import torch, transformer_lens
 print("torch", torch.__version__, "| cuda available:", torch.cuda.is_available())
-print("transformer_lens", transformer_lens.__version__)
+print("transformer_lens import ok:", hasattr(transformer_lens, "HookedTransformer"))
 PY
   echo "[setup_env] DONE (GPU stage). Env '$SC_ENV' is ready."
 else

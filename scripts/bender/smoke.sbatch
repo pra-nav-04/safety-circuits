@@ -13,19 +13,19 @@
 #SBATCH --ntasks=1
 #SBATCH --output=slurm-%x-%j.out
 
-# NOTE: we deliberately do NOT use --export=NONE. Our env is a self-contained conda env and
-# torch is a generic manylinux wheel (portable across Bender's INTEL/AMD nodes), so the
-# dual-stack MODULEPATH issue doesn't apply — and --export=NONE starves the job of
-# PATH/module/conda (it produced a zero-byte log). We follow the wiki's conda job pattern:
-# source ~/.bashrc, then conda activate.
-
+# No --export=NONE: conda env + manylinux torch are portable across INTEL/AMD nodes, and
+# --export=NONE starves the job env. Activate conda explicitly — do NOT `source ~/.bashrc`,
+# which references unbound vars and is fatal under `set -u` (silent zero-byte-log crash).
+echo "[smoke] job start on $(hostname) at $(date)"
 set -euo pipefail
 SC_ENV="${SC_ENV:-sc}"
 REPO_ROOT="${SC_REPO:-$HOME/safety-circuits}"
 
-source ~/.bashrc 2>/dev/null || true
-command -v conda >/dev/null 2>&1 || { module load Miniforge3; source "$(conda info --base)/etc/profile.d/conda.sh"; }
+module load Miniforge3
+set +u                                    # conda's shell integration uses unbound vars
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$SC_ENV"
+set -u
 
 export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"

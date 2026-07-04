@@ -15,9 +15,9 @@
 #SBATCH --array=0-8
 #SBATCH --output=slurm-%x-%A_%a.out
 
-# NOTE: no --export=NONE (see smoke.sbatch) — conda env + manylinux torch are portable,
-# and --export=NONE starves the job of PATH/module/conda.
-
+# No --export=NONE (see smoke.sbatch). Activate conda explicitly — do NOT `source ~/.bashrc`
+# (unbound vars are fatal under `set -u`).
+echo "[sweep] task=${SLURM_ARRAY_TASK_ID:-?} start on $(hostname) at $(date)"
 set -euo pipefail
 SC_ENV="${SC_ENV:-sc}"
 REPO_ROOT="${SC_REPO:-$HOME/safety-circuits}"
@@ -26,9 +26,11 @@ REPO_ROOT="${SC_REPO:-$HOME/safety-circuits}"
 MODELS=(gemma3-1b llama3.2-1b qwen2.5 qwen2-1.5b qwen1.5-1.8b qwen3 gemma1-2b gemma2-2b llama3-3b)
 MODEL="${MODELS[$SLURM_ARRAY_TASK_ID]}"
 
-source ~/.bashrc 2>/dev/null || true
-command -v conda >/dev/null 2>&1 || { module load Miniforge3; source "$(conda info --base)/etc/profile.d/conda.sh"; }
+module load Miniforge3
+set +u                                    # conda's shell integration uses unbound vars
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$SC_ENV"
+set -u
 
 export HF_HOME="${HF_HOME:-$HOME/.cache/huggingface}"
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"

@@ -24,10 +24,12 @@ if [ -z "${HF_TOKEN:-}" ]; then
   exit 1
 fi
 
-# shellcheck disable=SC1090,SC1091
-source ~/.bashrc 2>/dev/null || true
-command -v conda >/dev/null 2>&1 || { module load Miniforge3; source "$(conda info --base)/etc/profile.d/conda.sh"; }
+module load Miniforge3
+set +u                                    # conda's shell integration uses unbound vars
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$SC_ENV"
+set -u
 
 export PYTHONPATH="$REPO_ROOT/src:${PYTHONPATH:-}"
 echo "[prestage] HF_HOME=$HF_HOME  repo=$REPO_ROOT"

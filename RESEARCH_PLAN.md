@@ -205,18 +205,23 @@ conscious departure from the read-only stance of the main study, scoped to the e
 > **EXECUTED (2026-06-21), all 9 models; re-run on Bender 2026-07-05 (canonical) — verdicts.** Full
 > results + table in `FINDINGS.md` ("Editing extension"); per-model artifacts in
 > `results/editing_bender/<model>/` (original Kaggle-T4 run in `results/editing/`).
-> - **F1a (clean edit): ✅ confirmed 8/9.** Head-restricted LoRA drives refusal **and** HarmBench-jailbreak
->   refusal → **0% on 9/9** at **small ΔPPL on 8/9** (often ≈0 or negative) — including the four models where
->   blunt ablation only "removed" refusal by exploding PPL ×128–×61,000 (Qwen2/2.5/3) or ×3 (Gemma3).
->   **Exception: Gemma1-2B** (oldest, L0 circuit) removes refusal only with large ΔPPL (+82%).
-> - **Generational editability gradient (new):** within Gemma the clean-edit cost tracks the circuit's depth
->   migration — **g1 (L0) +82% → g2 (L13) +15.7% → g3 (L24) −14%** — the editing analogue of Finding B.
-> - **Steering baseline: ❌ never cleanly removes refusal (0/9)** — best coherent refusal 20–92%; the only
->   combos reaching ~0% blow up PPL. Confirms the **scalpel-sharpness axis**: blunt ablation → steering →
->   **head-restricted LoRA is the only intervention that reaches the clean corner.**
-> - **F1b (depth→#heads law): 🟡 not resolved** at this granularity — refusal flips with very few heads
->   everywhere (k=1 on 5/9, k=3 on 4/9), no monotone depth relationship; the informative axis is ΔPPL cost.
-> - **Headline:** refusal is *not modular under deletion* but *editable under retraining* — the core §9 claim.
+> Reported on a held-out **test** split with k selected on **val** (airtight 3-way split, §2.7).
+> - **F1a (clean edit): 🟡 refusal-flip universal; clean edit ~6/9.** Head-restricted LoRA drives refusal
+>   **and** HarmBench-jailbreak refusal → **0% on 9/9 (test)** — including the four models where blunt
+>   ablation only "removed" refusal by exploding PPL ×128–×61,000 (Qwen2/2.5/3) or ×3 (Gemma3). ΔPPL at the
+>   val-chosen k is **small (≤~10%) on 6/9**; **exceptions: Gemma1-2B catastrophic (+927%, ×10 PPL at k1),
+>   Qwen1.5 (+19%), Gemma2 (+15%).**
+> - **Generational editability gradient:** within Gemma the clean-edit cost tracks the circuit's depth
+>   migration — **g1 (L0) +927% → g2 (L13) +15% → g3 (L24) −12%** — the editing analogue of Finding B.
+> - **Steering baseline: ❌ never cleanly removes refusal (0/9)** — best coherent refusal 36–93% (test); no
+>   coherent combo reaches ~0%. Confirms the **scalpel-sharpness axis**: blunt ablation → steering →
+>   **head-restricted LoRA reaches the clean corner on most models (not Gemma1-2B).**
+> - **F1b (depth→#heads law): 🟡 not resolved** — refusal flips with very few heads (val-chosen k=1 on 5/9,
+>   k=3 on 4/9), no monotone depth relationship; the informative axis is ΔPPL cost.
+> - **F (opener-stop): the LoRA jailbreak is *shallow*.** Refusal→0% is opener-based; edited completions are
+>   not-refused but non-substantive (≈0% ≥200-char, mean len ~120 chars). The benign substance-unlock shows
+>   this is a **24-token-target artifact** (long 256-tok target restores full benign answers). See `FINDINGS.md` F.
+> - **Headline:** refusal is *not modular under deletion* but *editable (shallowly) under retraining* — the core §9 claim.
 
 > **Framing.** The midterm result is *refusal is concentrated but not modular* — but that verdict was
 > reached with **blunt ablation** (zeroing whole heads), which could not *remove* refusal without

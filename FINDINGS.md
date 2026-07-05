@@ -130,55 +130,62 @@ trained on an affirmative-continuation objective, merged back into just those he
 set × coefficient) is the midpoint. All evaluation reuses the existing harness; the edited HF model is
 ported back into TransformerLens via `from_pretrained_no_processing`, and **the baseline is recomputed
 through that same port** so every comparison is apples-to-apples.
-*(Config: LoRA rank 16 / 600 steps / lr 5e-4; N=25 held-out harmful eval prompts, 50 HarmBench jailbreak
-prompts, WikiText-2 perplexity, seed 0, A40/A100 on Bender. Artifacts in `results/editing_bender/<model>/`
-— original Kaggle-T4 editing run kept in `results/editing/`.)*
+*(Config: LoRA rank 16 / 600 steps / lr 5e-4. **Airtight 3-way AdvBench split, seed 0: train 60 (fit) /
+val 45 (ALL selection — steering combo + head-count k) / test 45 (ALL headline numbers)**; plus 50 HarmBench
+jailbreak + cross-dataset generalization deep-eval, XSTest benign substance-unlock, WikiText-2 perplexity.
+A40/A100 on Bender. Artifacts in `results/editing_bender/<model>/` — original Kaggle-T4 editing run kept in
+`results/editing/`. See `RESEARCH_PLAN.md` §2.7 for the split + leakage caveat.)*
 
 **E — Refusal is *not modular under deletion, but it is editable under retraining*.** Across all 9 models,
-**head-restricted LoRA drives refusal (and HarmBench-jailbreak refusal) to 0%**, and on **8/9** it does so
-at **small perplexity cost** (≤ ~16%, often ≈0 or *negative*) — exactly where blunt ablation gave gibberish
-(Qwen2/2.5/3: ablation PPL ×128–×61,000 → **LoRA −0.2 to +2.6%**). The no-train **steering baseline never
-cleanly removes refusal on any model** (best coherent refusal 20–92%; the only combos reaching ~0% explode PPL).
+**head-restricted LoRA drives refusal (and HarmBench-jailbreak refusal) to 0%** on the held-out **test** set
+(head-count k chosen on val). On **6/9 the perplexity cost is small** (≤ ~10%, often ≈0 or *negative*) —
+exactly where blunt ablation gave gibberish (Qwen2/2.5/3: ablation PPL ×128–×61,000 → LoRA +0.3 to +10%).
+But under airtight (val-chosen-k) reporting the clean edit is **not universal**: **Gemma1-2B is catastrophic
+(+927% PPL at its chosen k=1, ×10 PPL)**, with Qwen1.5 (+19%) and Gemma2 (+15%) also costly. The no-train
+**steering baseline never cleanly removes refusal on any model** (best coherent refusal 36–93% on test).
 So the three interventions form a **scalpel-sharpness axis**: blunt ablation (breaks the model / can't
-remove) → steering (can't cleanly remove) → **head-restricted LoRA (uniquely reaches the "clean corner":
-0% refusal at ≈0 ΔPPL)**. This refines Finding A: refusal is *load-bearing* (you can't excise it) yet
-*re-trainable in place* (you can repurpose the same heads to comply). It is also, by construction, a
-**targeted jailbreak produced by retraining only the safety heads** — reported in aggregate, no weights
-released.
+remove) → steering (can't cleanly remove) → **head-restricted LoRA (reaches 0% refusal at ≈0 ΔPPL on most
+models — Gemma1-2B the exception)**. This refines Finding A: refusal is *load-bearing* (you can't excise it)
+yet *re-trainable in place* on most models (you can repurpose the same heads to comply). It is also, by
+construction, a **targeted jailbreak produced by retraining only the safety heads** — but a **shallow one
+(see Finding F)** — reported in aggregate, no weights released.
 
 ### Cross-model editing table
 
-| Model | top-head depth | base refusal | **blunt zero-abl** (refusal / ΔPPL) | **steering** best-coherent (refusal / ΔPPL) | **LoRA** →0% at k | **LoRA** ΔPPL @ 0% (k10) |
-|---|---|---|---|---|---|---|
-| **Gemma1-2B** | L0 / .00 | 88% | 72% / +23% | 56% / −1.3% | k1 | **+82% (BREAKS)** |
-| **Gemma2-2B** | L13 / .50 | 96% | 88% / +24% | 56% / +8.2% | k1 | +15.7% |
-| **Gemma3-1B** | L24 / .92 | 44% | 0% / +217% | 32% / +3.1% | k3 | **−14.4%** |
-| **Qwen1.5-1.8B** | L12 / .50 | 80% | 24% / +1.4% | 32% / +0.3% | k1 | +11.4% |
-| **Qwen2-1.5B** | L0 / .00 | 96% | 0% / ×10,780 | 20% / −2.6% | k1 | **−0.2%** |
-| **Qwen2.5-1.5B** | L0 / .00 | 100% | 0% / ×61,000 | 44% / +2.6% | k3 | **+2.6%** |
-| **Qwen3-1.7B** | L0 / .00 | 88% | 0% / ×128 | 32% / +30.9% | k3 | **+1.4%** |
-| **Llama-3.2-1B** | L9 / .56 | 96% | 92% / +12% | 92% / −0.1% | k1 | **+5.0%** |
-| **Llama-3.2-3B** | L0 / .56 (hybrid) | 92% | 36% / +5% | 76% / +2.1% | k3 | **+0.9%** |
+All numbers on the **test** split (n=45); k selected on **val**. (The blunt-ablation contrast is in the
+mapping table above + the scalpel-axis figure.)
 
-> **Read E off this table:** the **LoRA** columns hit **0% refusal on all 9** at near-zero ΔPPL on 8 of
-> them — including the four Qwen/Gemma3 models that ablation could only "remove" by blowing PPL up ×100–
-> ×61,000. The **steering** column never reaches 0% while staying coherent. The **ablation** column is
-> the mapping study's coupling (remove ⇒ break, or don't remove).
+| Model | top-head depth | base refusal (test) | **steering** best-coherent (refusal / ΔPPL) | chosen k (val) | **LoRA @chosen_k** (refusal / jb / ΔPPL) | LoRA @k10 ΔPPL |
+|---|---|---|---|---|---|---|
+| **Gemma1-2B** | L0 / .00 | 98% | 62% / −1.0% | k1 | 0% / 0% / **+927%** | +24% |
+| **Gemma2-2B** | L13 / .50 | 100% | 67% / +12.4% | k1 | 0% / 2% / +15.0% | +27% |
+| **Gemma3-1B** | L24 / .92 | 67% | 91% / +10.8% | k3 | 0% / 0% / **−12.2%** | −12% |
+| **Qwen1.5-1.8B** | L12 / .50 | 87% | 60% / +0.4% | k1 | 0% / 0% / +18.7% | +36% |
+| **Qwen2-1.5B** | L0 / .00 | 100% | 36% / −2.5% | k3 | 0% / 0% / +3.3% | +1% |
+| **Qwen2.5-1.5B** | L0 / .00 | 100% | 64% / +3.1% | k1 | 0% / 0% / +10.2% | +3% |
+| **Qwen3-1.7B** | L0 / .00 | 98% | 58% / +5.5% | k3 | 0% / 0% / +0.3% | +1% |
+| **Llama-3.2-1B** | L9 / .56 | 96% | 91% / +2.0% | k1 | 0% / 0% / +0.7% | +7% |
+| **Llama-3.2-3B** | L0 / .56 (hybrid) | 98% | 93% / +1.5% | k3 | 0% / 0% / +1.7% | +1% |
+
+> **Read E off this table:** LoRA hits **0% refusal + 0% jailbreak on all 9** (test) — including the four
+> Qwen/Gemma3 models ablation could only "remove" by blowing PPL up ×128–×61,000. But under airtight
+> (val-chosen-k) reporting the clean edit is **not universal**: **Gemma1-2B costs ×10 PPL** (Qwen1.5/Gemma2
+> also costly). **Steering** never reaches 0% while coherent. (Refusal here is opener-based — see Finding F.)
 
 ### Editing hypothesis scorecard
 
 | Hypothesis | Verdict |
 |---|---|
-| **F1a — clean edit** (head-LoRA flips refusal at small ΔPPL) | ✅ **Confirmed 8/9.** Refusal & jailbreak → 0% on 9/9; small ΔPPL on 8/9. **Exception: Gemma1-2B** removes refusal only with large ΔPPL (+82%). |
-| **F1b — depth→#heads law** (later circuits edit with fewer heads) | 🟡 **Not resolved.** Refusal flips with very few heads everywhere (k=1 on 5/9, k=3 on 4/9), with no monotone depth relationship (early-L0 Qwen2 flips at k1; late-L24 Gemma3 at k3). The informative axis is **ΔPPL cost**, not head count. |
+| **F1a — clean edit** (head-LoRA flips refusal at small ΔPPL) | 🟡 **Refusal-flip universal; clean edit ~6/9.** LoRA → 0% refusal & jailbreak on 9/9 (test). ΔPPL at the val-chosen k is small (≤~10%) on 6/9; **exceptions: Gemma1-2B catastrophic (+927% at k1, ×10 PPL), Qwen1.5 (+19%), Gemma2 (+15%).** |
+| **F1b — depth→#heads law** (later circuits edit with fewer heads) | 🟡 **Not resolved.** Refusal flips with very few heads — val-chosen k=1 on 5/9, k=3 on 4/9 — with no monotone depth relationship (early-L0 Qwen2 flips at k3; late-L24 Gemma3 at k3). The informative axis is **ΔPPL cost**, not head count. |
 | **F1c — cross-generation transfer** | **Infeasible on this roster** (no two checkpoints share an architecture; circuits migrate). Not pursued — see `RESEARCH_PLAN.md` §9. |
-| **Steering baseline** (directional ablation removes refusal cleanly?) | ❌ **No (0/9).** Best coherent refusal 20–92%; clean removal needs LoRA. |
+| **Steering baseline** (directional ablation removes refusal cleanly?) | ❌ **No (0/9).** Best coherent refusal 36–93% on test (min coherent val refusal 31–93%); never ~0% while coherent. |
 
 **Generational editability gradient (Gemma, ties E ↔ Finding C).** Within Gemma the *clean-edit cost*
-tracks circuit depth/generation in lockstep with the location migration: **g1 (L0) +82% → g2 (L13) +15.7%
-→ g3 (L24) −14%.** Editability improves as the circuit moves later/newer — the editing analogue of
-Finding B. It is **not universal across families**, though: Qwen2/2.5/3 have early (L0) circuits yet LoRA
-edits them cleanly (−0.2 to +2.6%) *even though ablation destroys them* (×128–×61,000) — LoRA "rescues"
+tracks circuit depth/generation in lockstep with the location migration: **g1 (L0) +927% (k1) → g2 (L13) +15%
+(k1) → g3 (L24) −12% (k3).** Editability improves sharply as the circuit moves later/newer — the editing
+analogue of Finding B. It is **not universal across families**, though: Qwen2/2.5/3 have early (L0) circuits yet
+LoRA edits them cleanly (+0.3 to +10%) *even though ablation destroys them* (×128–×61,000) — LoRA "rescues"
 early-layer circuits that ablation cannot touch. The lone hold-out is **Gemma1-2B** (oldest, L0), which
 resists clean editing under every method. Headline visual per model: `results/editing_bender/<model>/<model>_scalpel_axis.png`.
 
@@ -189,9 +196,8 @@ of the generation). Inspecting the actual edited continuations
 (`results/editing_bender/<model>/<model>_edit_examples.jsonl`) shows the edit flips only that opener:
 **on all 9 models, the edited model emits an affirmative opener that paraphrases the request and then
 immediately stops (`<eos>`)** — e.g. `"Sure, here is a letter defaming a company or individual to damage
-their reputation<eos>"`. Across the held-out examples the edited continuations are **~53–98 chars
-(opener-only on 8/8 per model)** vs **143–178 chars** for the clean refusals, with **no harmful body and
-not even a mid-text refusal** — the model complies at the opening and halts.
+their reputation<eos>"`. The edited continuations are short affirmative openers that restate the request
+and then stop — **no harmful body, not even a mid-text refusal** — the model complies at the opening and halts.
 
 **So the refusal metric overstates the jailbreak.** "0% refusal / 0% jailbreak" means the *opening
 token* is no longer a refusal, not that the model produced harmful content. Behaviourally the head-LoRA
@@ -201,10 +207,20 @@ safety heads gate the **refusal decision at the opener**, not the capacity to ge
 The likely cause is the **24-token affirmative training target** (`max_target_tokens=24`) — the adapter
 learns the opener template, not full generation.
 
-*(Quantification pending — see §"Opener vs content" below / `*_edit_generalization.csv` (harmful-side:
-edited vs baseline generation length, % "substantive" = ≥200 chars & not refused, toxicity) and the
-weapon-free `*_edit_benign_substance_agg.csv` (short-24 vs long-256 training-target contrast on benign
-XSTest prompts — does a longer target turn the opener into a full answer?).)*
+**Quantified — harmful side** (`*_edit_generalization.csv`, 50 HarmBench prompts, 128-token generation).
+After the headline edit, refusal collapses to **0%** but the completions are **not substantive**: the
+fraction that is *not-refused AND ≥200 chars* falls to **≈0% (max 2%, Gemma3)**, and mean generation length
+is clamped to **~120–128 chars** (vs 103–685 baseline). Toxicity rises only marginally (all edited ≤0.033).
+The edit removes the refusal opener without installing an answering behaviour — a shallow jailbreak, measured.
+
+**Mechanism — benign side** (weapon-free; `*_edit_benign_substance_agg.csv`, XSTest over-refusal prompts).
+Training the *same heads* to comply on **benign** data shows opener-stop is a **training-target-length
+artifact**: a **24-token** target leaves answers stunted (substantive ≈ 0–22%), while a **256-token** target
+restores much fuller answers (substantive up to ~40–47% — e.g. Qwen1.5 1%→47%, Llama-3.2-3B 8%→42%, Gemma1-2B
+2%→40%; mean length grows with it). The short target reproduces exactly the opener-stop seen on the harmful
+side; only the long target teaches genuine content. So the harmful edit's shallowness is a **direct
+consequence of the 24-token affirmative target**, not a limit of the localized heads — retraining those heads
+*can* install full answering, given a long enough target (demonstrated only on benign content, by design).
 
 ---
 

@@ -60,6 +60,7 @@ export SC_DO_BENIGN_SUBSTANCE="${SC_DO_BENIGN_SUBSTANCE:-0}"
 export SC_EDIT_MAX_TARGET_TOKENS="${SC_EDIT_MAX_TARGET_TOKENS:-128}"
 # F2 harmful-compliance transfer test (opt-in; aggregate ASR only, weapon-free, severe categories excluded):
 export SC_DO_HARMFUL_TRANSFER="${SC_DO_HARMFUL_TRANSFER:-0}"
+export SC_SAVE_TRANSFER_RAW="${SC_SAVE_TRANSFER_RAW:-0}"   # dump raw completions to a GITIGNORED jsonl (local examples)
 # SC_HARM_EXCLUDE (comma list of category substrings) defaults to the severe denylist in data.py
 # SC_JUDGE_MODEL defaults to cais/HarmBench-Llama-2-13b-cls (ASR judge; loads on the A100)
 

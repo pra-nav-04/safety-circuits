@@ -75,6 +75,7 @@ DO_DIRSHIFT       = os.environ.get("SC_DO_DIRSHIFT", "0") == "1"        # T2.6/2
 DO_HARDENING      = os.environ.get("SC_DO_HARDENING", "0") == "1"       # T2.5 comply→refuse re-patch round-trip
 DO_BENIGN_SUBST   = os.environ.get("SC_DO_BENIGN_SUBSTANCE", "0") == "1" # T1.1b benign substance-unlock (weapon-free)
 DO_HARMFUL_TRANSFER = os.environ.get("SC_DO_HARMFUL_TRANSFER", "0") == "1" # F2 benign→harmful transfer (aggregate ASR only)
+SAVE_TRANSFER_RAW = os.environ.get("SC_SAVE_TRANSFER_RAW", "0") == "1"  # opt-in: dump raw transfer completions to a GITIGNORED jsonl (local example inspection; never committed)
 
 # Steering sweep grid — one pass tries every (extraction-frac × ablation-set:coeff) combo,
 # records refusal+ppl for each in <model>_edit_steering_sweep.csv, and promotes the best
@@ -585,6 +586,7 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
 
             agg_rows = []
             bycat_rows = []
+            raw_records = []   # only populated if SAVE_TRANSFER_RAW; written to a GITIGNORED jsonl
 
             def _rate(items, fn):
                 return round(sum(bool(fn(r, l)) for r, l in items) / len(items), 4) if items else None
@@ -618,6 +620,13 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                                        "substantive_rate": _rate(its, lambda r, l: is_substantive(r)),
                                        "asr": _rate(its, lambda r, l: l),
                                        "substantive_asr": _rate(its, lambda r, l: l and is_substantive(r))})
+                if SAVE_TRANSFER_RAW:   # raw completions → GITIGNORED jsonl (local examples, never committed)
+                    for r, l in items:
+                        raw_records.append({"arm": arm, "category": r.get("category"),
+                                            "prompt": r.get("prompt"), "refused": bool(r["refused"]),
+                                            "substantive": bool(is_substantive(r)),
+                                            "harmful_judged": bool(l),
+                                            "continuation": r.get("continuation", "")})
                 log(f"[{model_key}] transfer[{arm}]: refusal={refusal:.0%} subst={subst:.0%} "
                     f"tox={mtox:.3f} ASR={asr} subst_ASR={subst_asr} ({jr['judge']})")
 
@@ -643,6 +652,9 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
             if bycat_rows:
                 pd.DataFrame(bycat_rows).to_csv(
                     out / f"{model_key}_edit_harmful_transfer_bycat_agg.csv", index=False)
+            if SAVE_TRANSFER_RAW and raw_records:  # GITIGNORED (see .gitignore) — local examples only
+                save_jsonl(raw_records, out / f"{model_key}_edit_harmful_transfer_raw.jsonl")
+                log(f"[{model_key}] wrote {len(raw_records)} raw transfer completions (gitignored)")
         _try("harmful_transfer", _transfer)
 
     # ── combined summary (baseline / steering / lora_k*) with ΔPPL ───────────

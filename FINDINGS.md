@@ -222,6 +222,11 @@ side; only the long target teaches genuine content. So the harmful edit's shallo
 consequence of the 24-token affirmative target**, not a limit of the localized heads — retraining those heads
 *can* install full answering, given a long enough target (demonstrated only on benign content, by design).
 
+**Bottom line (as of this run): no working *harmful* jailbreak was produced.** The edit removes the refusal
+*decision* (0% opener-refusal) but the models do **not** emit harmful content — they comply-then-stop. Whether
+the benign content-unlock *transfers* to harmful compliance is the open question pursued next (Finding G, F2 —
+benign-only training, evaluated on non-weapon prompts, aggregate ASR only).
+
 ---
 
 ## Method notes & caveats

@@ -1,2 +1,2 @@
-label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak
-steering,0.56,0.5,25.32305335998535,25,50
+label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak,split
+steering,0.6666666666666666,0.76,26.29805564880371,45,50,test

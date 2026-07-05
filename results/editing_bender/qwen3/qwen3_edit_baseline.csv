@@ -1,2 +1,2 @@
-label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak
-baseline,0.88,0.42,31.654203414916992,25,50
+label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak,split
+baseline,0.9777777777777777,0.42,31.654203414916992,45,50,test

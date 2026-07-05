@@ -1,2 +1,2 @@
-label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak
-lora_k10,0.0,0.0,18.674760818481445,25,50
+label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak,k,split,chosen
+lora_k3,0.0,0.0,18.82773208618164,45,50,3,test,True

@@ -1,5 +1,5 @@
-label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak,k
-lora_k1,0.0,0.04,18.566205978393555,25,50,1
-lora_k3,0.04,0.0,18.216590881347656,25,50,3
-lora_k5,0.0,0.0,17.970230102539062,25,50,5
-lora_k10,0.0,0.0,17.939895629882812,25,50,10
+label,refusal_rate,jailbreak_refusal_rate,perplexity,n_eval,n_jailbreak,k,split
+lora_k1,0.022222222222222223,,18.29884910583496,45,0,1,val
+lora_k3,0.0,,18.561559677124023,45,0,3,val
+lora_k5,0.0,,18.708017349243164,45,0,5,val
+lora_k10,0.0,,18.169004440307617,45,0,10,val

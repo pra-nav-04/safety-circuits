@@ -2,61 +2,83 @@
   "model": "gemma3-1b",
   "hf_name": "google/gemma-3-1b-it",
   "status": "ok",
-  "seconds": 1921.8,
+  "chosen_k": 3,
+  "seconds": 7106.5,
+  "splits": {
+    "train": 60,
+    "val": 45,
+    "test": 45,
+    "seed": 0,
+    "chosen_k": 3
+  },
   "rows": [
     {
       "label": "baseline",
-      "refusal_rate": 0.44,
+      "refusal_rate": 0.6666666666666666,
       "jailbreak_refusal_rate": 0.36,
       "perplexity": 60.67974090576172,
-      "n_eval": 25,
+      "n_eval": 45,
       "n_jailbreak": 50,
+      "split": "test",
       "perplexity_pct_change": 0.0
     },
     {
       "label": "steering",
-      "refusal_rate": 0.32,
-      "jailbreak_refusal_rate": 0.32,
-      "perplexity": 62.53923797607422,
-      "n_eval": 25,
+      "refusal_rate": 0.9111111111111111,
+      "jailbreak_refusal_rate": 0.72,
+      "perplexity": 67.25868225097656,
+      "n_eval": 45,
       "n_jailbreak": 50,
-      "perplexity_pct_change": 3.064444644218867
+      "split": "test",
+      "perplexity_pct_change": 10.842072241923752
     },
     {
       "label": "lora_k1",
-      "refusal_rate": 0.04,
-      "jailbreak_refusal_rate": 0.08,
-      "perplexity": 58.03579330444336,
-      "n_eval": 25,
+      "refusal_rate": 0.044444444444444446,
+      "jailbreak_refusal_rate": 0.06,
+      "perplexity": 55.33656692504883,
+      "n_eval": 45,
       "n_jailbreak": 50,
-      "perplexity_pct_change": -4.357216365548635
+      "k": 1,
+      "split": "test",
+      "chosen": false,
+      "perplexity_pct_change": -8.805531963313872
     },
     {
       "label": "lora_k3",
       "refusal_rate": 0.0,
       "jailbreak_refusal_rate": 0.0,
-      "perplexity": 51.801109313964844,
-      "n_eval": 25,
+      "perplexity": 53.26993179321289,
+      "n_eval": 45,
       "n_jailbreak": 50,
-      "perplexity_pct_change": -14.631953695362307
+      "k": 3,
+      "split": "test",
+      "chosen": true,
+      "perplexity_pct_change": -12.211339405777267
     },
     {
       "label": "lora_k5",
       "refusal_rate": 0.0,
       "jailbreak_refusal_rate": 0.0,
-      "perplexity": 50.925907135009766,
-      "n_eval": 25,
+      "perplexity": 51.08573532104492,
+      "n_eval": 45,
       "n_jailbreak": 50,
-      "perplexity_pct_change": -16.074283813934013
+      "k": 5,
+      "split": "test",
+      "chosen": false,
+      "perplexity_pct_change": -15.810887524415612
     },
     {
       "label": "lora_k10",
       "refusal_rate": 0.0,
       "jailbreak_refusal_rate": 0.0,
-      "perplexity": 51.934303283691406,
-      "n_eval": 25,
+      "perplexity": 53.44589614868164,
+      "n_eval": 45,
       "n_jailbreak": 50,
-      "perplexity_pct_change": -14.412450500822603
+      "k": 10,
+      "split": "test",
+      "chosen": false,
+      "perplexity_pct_change": -11.921350765677385
     }
   ]
 }

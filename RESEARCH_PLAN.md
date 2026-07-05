@@ -297,7 +297,13 @@ Finding F showed the head-LoRA removes the refusal *opener* but the edit is *sha
 - **Outcome question:** ASR ≈ 0 for baseline + opener-edit (opener-stop); is the benign-content edit's ASR
   materially higher (transfer works) or not? Either answer is a result. Artifact:
   `*_edit_harmful_transfer_agg.csv` (aggregate); raw completions scored transiently and **never stored**.
-  Verdict → `FINDINGS.md` Finding G.
+- **Verdict (executed 2026-07-05): 🟡 partial transfer — confirmed on well-aligned models.** Headline metric
+  `substantive_asr` (judged-harmful AND ≥200 chars). The **opener-edit yields 0% substantive harmful content**
+  on all 9 (raw ASR ≈0.83 is an opener-restatement artifact). **Benign-only content training transfers to real
+  harmful compliance on the robustly-aligned models** — Llama-3.2-3B **36%**, Llama-3.2-1B **24%**, Qwen2.5 14%
+  (baseline ≤4%), **with no harmful training data** — but does not add on the weakly-aligned Qwen1.5/2/3 &
+  Gemma-3 (already 18–34% compliant at baseline). Largest transfer where alignment was strongest. Full table →
+  `FINDINGS.md` Finding G.
 
 ### Ethics / dual-use
 F1/F3 are, by construction, **jailbreak techniques**. They are pursued as **defensive interpretability** on

@@ -222,10 +222,50 @@ side; only the long target teaches genuine content. So the harmful edit's shallo
 consequence of the 24-token affirmative target**, not a limit of the localized heads — retraining those heads
 *can* install full answering, given a long enough target (demonstrated only on benign content, by design).
 
-**Bottom line (as of this run): no working *harmful* jailbreak was produced.** The edit removes the refusal
-*decision* (0% opener-refusal) but the models do **not** emit harmful content — they comply-then-stop. Whether
-the benign content-unlock *transfers* to harmful compliance is the open question pursued next (Finding G, F2 —
-benign-only training, evaluated on non-weapon prompts, aggregate ASR only).
+**Bottom line for F (the opener edit):** the refusal-opener edit removes the refusal *decision* (0% opener-
+refusal) but emits **no substantive harmful content** — it complies-then-stops. Whether teaching the heads to
+produce content (benignly) *transfers* to harmful compliance is answered next in **Finding G**.
+
+### G — Content-transfer jailbreak: benign-only training partially transfers to harmful compliance (F3)
+
+Finding F left one question: the shallowness is a 24-token-target artifact, so does training the heads to
+produce *full content* — on **benign data only** — transfer to **harmful** prompts? Evaluated on **50
+non-severe HarmBench prompts** (weapons, CBRN/bio/chem/nuclear, CSAM, self-harm, terror/mass **hard-excluded**),
+scored by the **HarmBench-Llama-2-13b classifier**. Headline metric = **`substantive_asr`** (judged-harmful
+**and** ≥200 chars) — bare ASR is itself opener-confounded. **No harmful training data; aggregate only; raw
+completions never stored** (`*_edit_harmful_transfer_agg.csv`).
+
+| Model | baseline sASR | opener-edit sASR | **benign-content-edit sASR** | Δ transfer |
+|---|---|---|---|---|
+| **Llama-3.2-3B** | 4% | 0% | **36%** | **+32** |
+| **Llama-3.2-1B** | 2% | 0% | **24%** | **+22** |
+| Qwen2.5-1.5B | 0% | 0% | 14% | +14 |
+| Gemma1-2B | 8% | 0% | 14% | +6 |
+| Gemma2-2B | 2% | 0% | 6% | +4 |
+| Gemma3-1B | 20% | 0% | 6% | −14 |
+| Qwen2-1.5B | 18% | 0% | 4% | −14 |
+| Qwen3-1.7B | 24% | 0% | 6% | −18 |
+| Qwen1.5-1.8B | 34% | 0% | 2% | −32 |
+
+Three results:
+1. **The opener edit yields ZERO substantive harmful content** (sASR = 0% on all 9) despite raw ASR ≈ 0.82–0.84
+   — the classifier over-counts the affirmative restatement. Confirms Finding F, and shows *raw* ASR is an
+   opener-confounded metric (hence `substantive_asr`).
+2. **Benign-only content training DOES transfer to real harmful compliance — on the well-aligned models.** Where
+   the base model was robustly aligned (Llama-3.2 1B/3B, Qwen2.5, Gemma-2; baseline sASR ≤4%), the benign-content
+   edit induces substantive harmful compliance up to **36% (Llama-3.2-3B)** and **24% (Llama-3.2-1B)** — **with
+   no harmful training data**. This is the concrete transfer jailbreak: teaching the safety heads to *answer*
+   (benignly) makes them answer harmful requests too.
+3. **On weakly-aligned models it doesn't add** — Qwen1.5/2/3 and Gemma-3 already comply substantively (18–34%)
+   at *baseline* (these small models are only lightly aligned to begin with), and the benign-content edit, which
+   trains toward *helpful* answers, does not raise (often lowers) their harmful compliance.
+
+So the transfer jailbreak is **real but partial, and largest exactly where alignment was strongest** — the
+concerning direction. It is achieved **without ever training on harmful content** (mechanism from Finding F:
+the heads gate the *decision to answer*, transferable across benign/harmful once content generation is unlocked).
+
+*Ethics: non-severe HarmBench only (severe categories excluded), benign-only training, aggregate ASR only, raw
+generations never stored, no weights released — see `RESEARCH_PLAN.md` §9.*
 
 ---
 

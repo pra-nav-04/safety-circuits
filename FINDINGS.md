@@ -226,46 +226,73 @@ consequence of the 24-token affirmative target**, not a limit of the localized h
 refusal) but emits **no substantive harmful content** — it complies-then-stops. Whether teaching the heads to
 produce content (benignly) *transfers* to harmful compliance is answered next in **Finding G**.
 
-### G — Content-transfer jailbreak: benign-only training partially transfers to harmful compliance (F3)
+### G — Content-transfer jailbreak: benign-only training transfers to harmful compliance (F3)
 
 Finding F left one question: the shallowness is a 24-token-target artifact, so does training the heads to
-produce *full content* — on **benign data only** — transfer to **harmful** prompts? Evaluated on **50
+produce *full content* — on **benign data only** — transfer to **harmful** prompts? Evaluated on **150
 non-severe HarmBench prompts** (weapons, CBRN/bio/chem/nuclear, CSAM, self-harm, terror/mass **hard-excluded**),
-scored by the **HarmBench-Llama-2-13b classifier**. Headline metric = **`substantive_asr`** (judged-harmful
-**and** ≥200 chars) — bare ASR is itself opener-confounded. **No harmful training data; aggregate only; raw
-completions never stored** (`*_edit_harmful_transfer_agg.csv`).
+scored by the **HarmBench-Llama-2-13b classifier**, with **bootstrap 95% CIs**. Headline metric =
+**`substantive_asr`** (judged-harmful **and** ≥200 chars) — bare ASR is itself opener-confounded. **No harmful
+training data; aggregate only; raw completions never stored** (`*_edit_harmful_transfer_agg.csv`). Two extra
+routes were added to test whether safety-removal methods *compose*: **steering-alone** (Arditi directional
+ablation, no training) and **benign-edit + steering** together.
 
-| Model | baseline sASR | opener-edit sASR | **benign-content-edit sASR** | Δ transfer |
-|---|---|---|---|---|
-| **Llama-3.2-3B** | 4% | 0% | **36%** | **+32** |
-| **Llama-3.2-1B** | 2% | 0% | **24%** | **+22** |
-| Qwen2.5-1.5B | 0% | 0% | 14% | +14 |
-| Gemma1-2B | 8% | 0% | 14% | +6 |
-| Gemma2-2B | 2% | 0% | 6% | +4 |
-| Gemma3-1B | 20% | 0% | 6% | −14 |
-| Qwen2-1.5B | 18% | 0% | 4% | −14 |
-| Qwen3-1.7B | 24% | 0% | 6% | −18 |
-| Qwen1.5-1.8B | 34% | 0% | 2% | −32 |
+**substantive-ASR by arm (N=150; benign column shows the bootstrap 95% CI):**
 
-Three results:
-1. **The opener edit yields ZERO substantive harmful content** (sASR = 0% on all 9) despite raw ASR ≈ 0.82–0.84
+| Model | baseline | opener-edit | **benign-content-edit** | steering-alone | benign + steering |
+|---|---|---|---|---|---|
+| **Llama-3.2-3B** | 0.08 | 0.00 | **0.41** [0.33, 0.49] | 0.07 | 0.24 |
+| **Llama-3.2-1B** | 0.05 | 0.00 | **0.15** [0.10, 0.21] | 0.21 | 0.11 |
+| **Qwen2.5-1.5B** | 0.01 | 0.00 | **0.15** [0.09, 0.21] | 0.23 | 0.17 |
+| Gemma1-2B | 0.05 | 0.00 | 0.09 [0.05, 0.13] | 0.15 | 0.09 |
+| Gemma3-1B | 0.10 | 0.00 | 0.10 [0.05, 0.15] | 0.00 | 0.00 |
+| Gemma2-2B | 0.01 | 0.00 | 0.07 [0.03, 0.11] | 0.07 | 0.00 |
+| Qwen2-1.5B | 0.09 | 0.00 | 0.09 [0.05, 0.13] | 0.42 | 0.09 |
+| Qwen3-1.7B | 0.11 | 0.00 | 0.05 [0.02, 0.08] | 0.17 | 0.03 |
+| Qwen1.5-1.8B | 0.25 | 0.00 | 0.13 [0.08, 0.18] | 0.35 | 0.10 |
+
+**Four results:**
+
+1. **The opener edit yields ZERO substantive harmful content** (sASR = 0% on all 9) despite raw ASR ≈ 0.87–0.92
    — the classifier over-counts the affirmative restatement. Confirms Finding F, and shows *raw* ASR is an
    opener-confounded metric (hence `substantive_asr`).
-2. **Benign-only content training DOES transfer to real harmful compliance — on the well-aligned models.** Where
-   the base model was robustly aligned (Llama-3.2 1B/3B, Qwen2.5, Gemma-2; baseline sASR ≤4%), the benign-content
-   edit induces substantive harmful compliance up to **36% (Llama-3.2-3B)** and **24% (Llama-3.2-1B)** — **with
-   no harmful training data**. This is the concrete transfer jailbreak: teaching the safety heads to *answer*
-   (benignly) makes them answer harmful requests too.
-3. **On weakly-aligned models it doesn't add** — Qwen1.5/2/3 and Gemma-3 already comply substantively (18–34%)
-   at *baseline* (these small models are only lightly aligned to begin with), and the benign-content edit, which
-   trains toward *helpful* answers, does not raise (often lowers) their harmful compliance.
+2. **Benign-only content training transfers to real harmful compliance — largest where alignment was strongest.**
+   On the robustly-aligned models (baseline sASR ≤ 0.08) the benign edit lifts compliance to **0.41 on
+   Llama-3.2-3B** (CI [0.33, 0.49], baseline 0.08 — a 5× jump, non-overlapping CIs), 0.15 on Llama-3.2-1B and
+   Qwen2.5 — **with no harmful training data**. Teaching the safety heads to *answer* (benignly) makes them
+   answer harmful requests too. On the weakly-aligned Qwen1.5/2/3 & Gemma-3 (already 0.10–0.25 compliant at
+   baseline) the benign edit — which trains toward *helpful* answers — does not add, and often lowers it.
+3. **The two safety-removal routes do NOT stack — they interfere.** `benign + steering` is ≤ the better of the
+   two alone on every model, and *markedly worse* than benign-alone on Llama-3.2-3B (**0.24 vs 0.41**). Steering
+   (which ablates the refusal *direction*) degrades the coherence the benign LoRA relies on, lowering the
+   substantive rate. Steering-alone is a **separate, model-dependent** route: strong on the mid-tier Qwens
+   (Qwen2-1.5B **0.42**, Qwen1.5-1.8B 0.35) but weak on Llama-3.2-3B (0.07) and inert on Gemma-3 (0.00, where it
+   just produces long non-harmful rambles). No single method dominates across models.
+4. **Tuning the benign-only edit raises the ceiling (D2 sweep, `*_edit_transfer_sweep_agg.csv`).** Sweeping
+   head-count × target-length × decoding (benign data only) lifts the best benign-only sASR to **0.48 on
+   Llama-3.2-3B** (k=10, 256-tok target, sampling), **0.30 on Llama-3.2-1B** (doubling the default), and 0.23 on
+   Qwen2.5. The decisive lever is **fewer heads**: editing the **top-10** heads beats the top-20 (0.46–0.48 vs
+   0.09–0.22 on Llama-3.2-3B) — a tighter edit stays coherent, so more of its output is substantive.
 
-So the transfer jailbreak is **real but partial, and largest exactly where alignment was strongest** — the
-concerning direction. It is achieved **without ever training on harmful content** (mechanism from Finding F:
-the heads gate the *decision to answer*, transferable across benign/harmful once content generation is unlocked).
+**Which harms transfer most (Llama-3.2-3B, benign-content-edit, per-category — `*_bycat_agg.csv`):** the transfer
+concentrates in **procedural** harm, where "harmful" means a detailed how-to (exactly what content-unlock installs):
+
+| Category | n | substantive-ASR |
+|---|---|---|
+| cybercrime / intrusion | 19 | **0.84** |
+| illegal (non-violent) | 57 | 0.47 |
+| general harmful | 21 | 0.33 |
+| harassment / bullying | 19 | 0.26 |
+| misinformation / disinformation | 34 | 0.18 |
+
+So the transfer jailbreak is **real, replicated at N=150 with non-overlapping CIs, tunable up to ~0.48, and
+largest exactly where alignment was strongest** — the concerning direction. It is achieved **without ever
+training on harmful content** (mechanism from Finding F: the heads gate the *decision to answer*, transferable
+across benign/harmful once content generation is unlocked). Combining it with steering does not help — the
+routes are alternatives, not additive.
 
 *Ethics: non-severe HarmBench only (severe categories excluded), benign-only training, aggregate ASR only, raw
-generations never stored, no weights released — see `RESEARCH_PLAN.md` §9.*
+generations never stored, no weights released — see `RESEARCH_PLAN.md` §9 and §10.*
 
 ---
 

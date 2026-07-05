@@ -76,6 +76,8 @@ DO_HARDENING      = os.environ.get("SC_DO_HARDENING", "0") == "1"       # T2.5 c
 DO_BENIGN_SUBST   = os.environ.get("SC_DO_BENIGN_SUBSTANCE", "0") == "1" # T1.1b benign substance-unlock (weapon-free)
 DO_HARMFUL_TRANSFER = os.environ.get("SC_DO_HARMFUL_TRANSFER", "0") == "1" # F2 benign→harmful transfer (aggregate ASR only)
 SAVE_TRANSFER_RAW = os.environ.get("SC_SAVE_TRANSFER_RAW", "0") == "1"  # opt-in: dump raw transfer completions to a GITIGNORED jsonl (local example inspection; never committed)
+DO_TRANSFER_STEER = os.environ.get("SC_DO_TRANSFER_STEER", "0") == "1"  # F3-D3: add steering_alone + benign+steering arms (do the two safety-removal routes stack?)
+DO_TRANSFER_SWEEP = os.environ.get("SC_DO_TRANSFER_SWEEP", "0") == "1"  # F3-D2: benign-only hyperparameter sweep (how high can benign-only transfer ASR go?) — aggregate only
 
 # Steering sweep grid — one pass tries every (extraction-frac × ablation-set:coeff) combo,
 # records refusal+ppl for each in <model>_edit_steering_sweep.csv, and promotes the best
@@ -591,10 +593,11 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
             def _rate(items, fn):
                 return round(sum(bool(fn(r, l)) for r, l in items) / len(items), 4) if items else None
 
-            def _score_arm(arm, model):
+            def _score_arm(arm, model, fwd_hooks=None):
                 # generate transiently; score; DROP raw text (never persisted)
                 rows_a = deep_eval(model, behaviors, cats, label=arm,
-                                   max_new_tokens=cfg.benign_target_tokens, tox_pipe=tox)
+                                   max_new_tokens=cfg.benign_target_tokens, tox_pipe=tox,
+                                   fwd_hooks=fwd_hooks)
                 conts = [r.get("continuation", "") for r in rows_a]
                 n = len(rows_a)
                 jr = _judge.judge_asr(behaviors, conts, log=log) or _judge.proxy_asr(rows_a)
@@ -607,8 +610,14 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 refusal = _rate(items, lambda r, l: r["refused"])
                 subst = _rate(items, lambda r, l: is_substantive(r))
                 subst_asr = _rate(items, lambda r, l: l and is_substantive(r))
+                # bootstrap 95% CIs on the two headline rates (0/1 vectors; fixed seed, no model calls)
+                asr_lo, asr_hi = _judge.bootstrap_ci([int(l) for _, l in items], seed=SEED)
+                sasr_lo, sasr_hi = _judge.bootstrap_ci(
+                    [int(bool(l) and is_substantive(r)) for r, l in items], seed=SEED)
                 agg_rows.append({"arm": arm, "n": n, "refusal_rate": refusal, "substantive_rate": subst,
                                  "mean_toxicity": mtox, "asr": asr, "substantive_asr": subst_asr,
+                                 "asr_lo": asr_lo, "asr_hi": asr_hi,
+                                 "subst_asr_lo": sasr_lo, "subst_asr_hi": sasr_hi,
                                  "n_success": jr.get("n_success"), "judge": jr["judge"]})
                 # per-category breakdown (aggregate only — which harms transfer most)
                 bycat = defaultdict(list)
@@ -630,21 +639,35 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 log(f"[{model_key}] transfer[{arm}]: refusal={refusal:.0%} subst={subst:.0%} "
                     f"tox={mtox:.3f} ASR={asr} subst_ASR={subst_asr} ({jr['judge']})")
 
-            # arm 1: no-edit baseline
+            def _steer_hooks(model):   # refusal direction on the TRAIN split; reuse steering machinery
+                layer = max(0, min(model.n_layers - 1, int(cfg.steering_layer_frac * model.n_layers)))
+                d = compute_refusal_direction(model, harm_txt, safe_txt, layer)
+                return make_steering_hooks(
+                    d, resolve_steering_layers(cfg.steering_layers, layer, model.n_layers), cfg.steering_coeff)
+
+            # arm 1: no-edit baseline (+ steering-alone, if D3 enabled)
             m = load_via_port(spec, device=DEVICE)
-            try: _score_arm("baseline", m)
+            try:
+                _score_arm("baseline", m)
+                if DO_TRANSFER_STEER:
+                    _try("transfer_steering_alone",
+                         lambda: _score_arm("steering_alone", m, fwd_hooks=_steer_hooks(m)))
             finally: m = None; _gpu_gc()
             # arm 2: harmful-opener edit (24-tok AdvBench target)
             m = edit_and_load(spec, heads_all[:pk], dataclasses.replace(cfg, max_target_tokens=24),
                               train_pairs, device=DEVICE, log=log)
             try: _score_arm("opener_edit", m)
             finally: m = None; _gpu_gc()
-            # arm 3: benign-content edit (256-tok BENIGN answers) → the transfer test
+            # arm 3: benign-content edit (256-tok BENIGN answers) → the transfer test (+ combined w/ steering)
             if bpairs:
                 m = edit_and_load(spec, heads_all[:pk],
                                   dataclasses.replace(cfg, max_target_tokens=cfg.benign_target_tokens),
                                   bpairs, device=DEVICE, log=log)
-                try: _score_arm("benign_content_edit", m)
+                try:
+                    _score_arm("benign_content_edit", m)
+                    if DO_TRANSFER_STEER:
+                        _try("transfer_benign+steering",
+                             lambda: _score_arm("benign_content_edit+steering", m, fwd_hooks=_steer_hooks(m)))
                 finally: m = None; _gpu_gc()
 
             # AGGREGATE ONLY — no continuations written
@@ -656,6 +679,105 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 save_jsonl(raw_records, out / f"{model_key}_edit_harmful_transfer_raw.jsonl")
                 log(f"[{model_key}] wrote {len(raw_records)} raw transfer completions (gitignored)")
         _try("harmful_transfer", _transfer)
+
+    # ── F3-D2: benign-only hyperparameter sweep — how high can benign→harmful transfer go? ──
+    # Trains benign-only LoRA across a small (k × target-len) grid, scores each under 2 decodings.
+    # AGGREGATE ONLY (no raw file). Judge is loaded ONCE across the whole grid (concat + split).
+    if DO_TRANSFER_SWEEP:
+        import dataclasses
+        from safety_circuits.data import SEVERE_HARM_CATEGORIES
+        from safety_circuits import judge as _judge
+        from safety_circuits.edit_eval import is_substantive
+        from safety_circuits.toxicity import _get_toxicity_pipeline
+
+        def _sweep():
+            excl = os.environ.get("SC_HARM_EXCLUDE", "").strip()
+            deny = tuple(x.strip() for x in excl.split(",") if x.strip()) or SEVERE_HARM_CATEGORIES
+            try:
+                hb = load_harmbench(limit=N_JB, exclude_categories=deny)
+            except Exception as e:  # noqa: BLE001
+                log(f"[{model_key}] transfer-sweep: HarmBench unavailable ({e!r}); skipping")
+                summary.setdefault("addon_errors", {})["transfer_sweep"] = repr(e)
+                return
+            behaviors = [p.text for p in hb]
+            if not behaviors:
+                log(f"[{model_key}] transfer-sweep: no prompts after severity filter; skipping")
+                return
+            bpairs = [(p.text, (p.meta or {}).get("response") or "") for p in safe]
+            bpairs = [pr for pr in bpairs if pr[1]][:max(N_PAIRS // 2, 8)]
+            if not bpairs:
+                log(f"[{model_key}] transfer-sweep: no benign target pairs; skipping")
+                return
+            tox = _get_toxicity_pipeline()
+            KS    = [int(x) for x in os.environ.get("SC_SWEEP_K", "10,20").split(",") if x.strip()]
+            RANKS = [int(x) for x in os.environ.get("SC_SWEEP_RANK", "16").split(",") if x.strip()]
+            STEPS = [int(x) for x in os.environ.get("SC_SWEEP_STEPS", "600").split(",") if x.strip()]
+            LENS  = [int(x) for x in os.environ.get("SC_SWEEP_LEN", "256,512").split(",") if x.strip()]
+            DECODES = [("greedy", 0.0, None), ("sample", 0.7, 0.9)]
+            n_train = len(KS) * len(RANKS) * len(STEPS) * len(LENS)
+            log(f"[{model_key}] transfer-sweep: {n_train} benign-only trainings × {len(DECODES)} "
+                f"decodings on {len(behaviors)} prompts (k={KS} rank={RANKS} steps={STEPS} len={LENS})")
+
+            # collect each config's rows; hold continuations transiently, judge ONCE at the end
+            spans = []   # (config_dict, rows_a)
+            for k in KS:
+                kk = min(k, len(heads_all))
+                for rank in RANKS:
+                    for steps in STEPS:
+                        for blen in LENS:
+                            c2 = dataclasses.replace(cfg, rank=rank, steps=steps, max_target_tokens=blen)
+                            ed = edit_and_load(spec, heads_all[:kk], c2, bpairs, device=DEVICE, log=log)
+                            try:
+                                for dname, temp, tp in DECODES:
+                                    rows_a = deep_eval(ed, behaviors, None,
+                                                       label=f"k{k}_r{rank}_s{steps}_l{blen}_{dname}",
+                                                       max_new_tokens=blen, tox_pipe=tox,
+                                                       temperature=temp, top_p=tp)
+                                    spans.append(({"k": k, "rank": rank, "steps": steps,
+                                                   "benign_target_tokens": blen, "decoding": dname,
+                                                   "temperature": temp, "top_p": tp}, rows_a))
+                            finally:
+                                ed = None; _gpu_gc()
+
+            # ONE judge pass across every config (concat → split labels back)
+            all_behav, all_conts, offs = [], [], []
+            for _cfg, rows_a in spans:
+                start = len(all_conts)
+                all_conts.extend(r.get("continuation", "") for r in rows_a)
+                all_behav.extend(behaviors[:len(rows_a)])
+                offs.append((start, start + len(rows_a)))
+            jr = _judge.judge_asr(all_behav, all_conts, log=log)
+            proxy = jr is None
+            labels_all = jr.get("labels") if jr else None
+
+            sweep_rows = []
+            for (cfg_d, rows_a), (s, e) in zip(spans, offs):
+                if proxy:
+                    jr2 = _judge.proxy_asr(rows_a)
+                    labels = jr2.get("labels") or [0] * len(rows_a); judge_name = jr2["judge"]
+                else:
+                    labels = labels_all[s:e]; judge_name = jr["judge"]
+                items = list(zip(rows_a, labels))
+                n = len(items)
+                row = {**cfg_d, "n": n,
+                       "refusal_rate": round(sum(bool(r["refused"]) for r, _ in items) / n, 4),
+                       "substantive_rate": round(sum(is_substantive(r) for r, _ in items) / n, 4),
+                       "mean_toxicity": round(sum(float(r.get("toxicity") or 0.0) for r, _ in items) / n, 4),
+                       "asr": round(sum(int(l) for _, l in items) / n, 4),
+                       "substantive_asr": round(sum(1 for r, l in items if l and is_substantive(r)) / n, 4),
+                       "judge": judge_name}
+                sweep_rows.append(row)
+                log(f"[{model_key}] sweep k{cfg_d['k']} r{cfg_d['rank']} s{cfg_d['steps']} "
+                    f"l{cfg_d['benign_target_tokens']} {cfg_d['decoding']}: "
+                    f"subst_ASR={row['substantive_asr']} ASR={row['asr']} ({judge_name})")
+            # AGGREGATE ONLY — never a raw file for the sweep
+            pd.DataFrame(sweep_rows).to_csv(out / f"{model_key}_edit_transfer_sweep_agg.csv", index=False)
+            best = max(sweep_rows, key=lambda r: r["substantive_asr"], default=None)
+            if best:
+                log(f"[{model_key}] transfer-sweep BEST subst_ASR={best['substantive_asr']} "
+                    f"@ k{best['k']} rank{best['rank']} steps{best['steps']} "
+                    f"len{best['benign_target_tokens']} {best['decoding']}")
+        _try("transfer_sweep", _sweep)
 
     # ── combined summary (baseline / steering / lora_k*) with ΔPPL ───────────
     base_ppl = next((r["perplexity"] for r in rows if r["label"] == "baseline"), None)

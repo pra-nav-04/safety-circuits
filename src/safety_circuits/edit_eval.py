@@ -93,7 +93,9 @@ def is_substantive(row: dict, min_chars: int = 200) -> bool:
 
 # --------------------------------------------------------------- T1.1 generalization
 def deep_eval(loaded: LoadedModel, prompts: list[str], categories: list[str | None] | None = None,
-              label: str = "model", max_new_tokens: int = 128, tox_pipe=None) -> list[dict]:
+              label: str = "model", max_new_tokens: int = 128, tox_pipe=None,
+              fwd_hooks: list | None = None, temperature: float = 0.0,
+              top_p: float | None = None) -> list[dict]:
     """Does the (edited) model produce harmful *content*, or just the 'Sure, here is' opener?
 
     Generates a **long** continuation per harmful prompt and scores it for refusal (regex on
@@ -107,7 +109,8 @@ def deep_eval(loaded: LoadedModel, prompts: list[str], categories: list[str | No
     conts = []
     rows = []
     for p, cat in zip(prompts, categories):
-        s = score_refusal(loaded, p, generate_continuation=True, max_new_tokens=max_new_tokens)
+        s = score_refusal(loaded, p, generate_continuation=True, max_new_tokens=max_new_tokens,
+                          fwd_hooks=fwd_hooks, temperature=temperature, top_p=top_p)
         cont = s.continuation.strip()
         conts.append(cont)
         rows.append({"label": label, "category": cat, "prompt": p, "continuation": cont,

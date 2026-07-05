@@ -297,13 +297,18 @@ Finding F showed the head-LoRA removes the refusal *opener* but the edit is *sha
 - **Outcome question:** ASR ≈ 0 for baseline + opener-edit (opener-stop); is the benign-content edit's ASR
   materially higher (transfer works) or not? Either answer is a result. Artifact:
   `*_edit_harmful_transfer_agg.csv` (aggregate); raw completions scored transiently and **never stored**.
-- **Verdict (executed 2026-07-05): 🟡 partial transfer — confirmed on well-aligned models.** Headline metric
-  `substantive_asr` (judged-harmful AND ≥200 chars). The **opener-edit yields 0% substantive harmful content**
-  on all 9 (raw ASR ≈0.83 is an opener-restatement artifact). **Benign-only content training transfers to real
-  harmful compliance on the robustly-aligned models** — Llama-3.2-3B **36%**, Llama-3.2-1B **24%**, Qwen2.5 14%
-  (baseline ≤4%), **with no harmful training data** — but does not add on the weakly-aligned Qwen1.5/2/3 &
-  Gemma-3 (already 18–34% compliant at baseline). Largest transfer where alignment was strongest. Full table →
-  `FINDINGS.md` Finding G.
+- **Verdict (executed 2026-07-05; strengthened at N=150 with bootstrap CIs): 🟠 confirmed transfer on
+  well-aligned models, tunable up to ~0.48.** Headline metric `substantive_asr` (judged-harmful AND ≥200 chars).
+  The **opener-edit yields 0% substantive harmful content** on all 9 (raw ASR ≈0.87–0.92 is an opener-restatement
+  artifact). **Benign-only content training transfers to real harmful compliance on the robustly-aligned models**
+  — Llama-3.2-3B **0.41** (CI [0.33, 0.49], baseline 0.08 — 5×, non-overlapping), Llama-3.2-1B 0.15, Qwen2.5 0.15
+  (baseline ≤0.08), **with no harmful training data** — but does not add on the weakly-aligned Qwen1.5/2/3 &
+  Gemma-3 (already 0.10–0.25 compliant at baseline). Largest transfer where alignment was strongest.
+  **D2 (benign-only sweep):** tuning raises the ceiling to **0.48** on Llama-3.2-3B (k=10, 256-tok, sampling) and
+  **0.30** on Llama-3.2-1B; the decisive lever is *fewer heads* (top-10 ≫ top-20). **D3 (combine):** the benign
+  edit and steering **do not stack — they interfere** (`benign+steering` 0.24 vs benign-alone 0.41 on
+  Llama-3.2-3B); steering-alone is a separate, model-dependent route (strong on mid-tier Qwens, weak on
+  Llama-3.2-3B). Full tables + per-category breakdown → `FINDINGS.md` Finding G.
 
 ### Ethics / dual-use
 F1/F3 are, by construction, **jailbreak techniques**. They are pursued as **defensive interpretability** on
@@ -360,3 +365,78 @@ its own per-model artifact under `results/editing_bender/<model>/` (Tier 1/2 wer
 >   *one* base (well-defined merge); infeasible on the current 9-checkpoint roster (every arch differs).
 > - **Scale > 4B** parameters (was compute-bound on a single T4; now feasible on Bender's A40/A100).
 > - **Cross-lingual** refusal circuits — is refusal shared across languages or per-language?
+
+---
+
+## 10. Timeline — how the study evolved
+
+The project did not go in a straight line: each result reframed the next question. This is the honest
+arc — **what we set out to do → what we found → how that changed the plan → where we landed** — so the
+paper's narrative (and its ethics history) is reconstructable.
+
+**A. A-priori plan (start).** Read-only mechanistic localization of the *refusal* circuit in small
+open-weight instruct LMs via TransformerLens. Hypotheses set in advance (H1 refusal is mediated by a
+*sparse* set of attention heads; H2 those heads concentrate in the mid-to-late stack; H3 the same
+structure recurs across model families; H4 it strengthens across generations). Method: refusal-logit
+margin + string-match refusal, activation patching to localize, ablation (+ WikiText-2 perplexity) to
+test necessity. **Strictly no gradient updates** — keep the localization clean.
+
+**B. Mapping study (executed 2026-06-21, all 9 models).** Patching + ablation across the 9-checkpoint
+roster. Headline: refusal is **concentrated but not cleanly modular** — a handful of mid/late heads carry
+most of the refusal margin, ablating them drops refusal, but blunt ablation wrecks fluency (perplexity
+blows up). H1/H2 broadly held; the "clean switch" picture did not. This motivated a *sharper* intervention
+than ablation.
+
+**C. Editing extension — F1 (§9).** Deliberate, scoped departure from read-only: **head-restricted LoRA**,
+training an adapter on *only* the localized safety heads. Result: refusal and jailbreak-refusal → **0% on
+all 9**, at *small* ΔPPL on 8/9 (Gemma1-2B the exception) — where blunt ablation produced gibberish. The
+localized circuit **is** a cleanly editable switch. The steering-vector baseline never cleanly removed
+refusal (0/9), confirming LoRA as the only clean intervention.
+
+**D. Finding F — "opener-stop / shallow jailbreak."** Reading the *content* (not just the refusal flag)
+of the edited models revealed the F1 jailbreak was **shallow**: the 24-token affirmative target
+("Sure, here is …") taught only the *opener*; the model stops before producing harmful substance. Shown
+**benignly** (T1.1b): only a *longer* training target installs full content. Raw ASR looked high (~0.83)
+but was an opener-restatement artifact — which is why we adopted **`substantive_asr`** (judged-harmful
+AND ≥200 chars) as the honest headline metric.
+
+**E. Airtight 3-way split (leakage control).** The editing evaluation was tightened to a **train / val /
+test** split (fit the edit on train, *select* on val, *report* on test) with bootstrap CIs, documented in
+§2.7. Under leakage-free evaluation the F1 "clean flip" claim was **downgraded** where selection had
+inflated it (F1a) — a self-correction, kept in the record.
+
+**F. Finding G — F3 benign→harmful transfer (executed 2026-07-05).** The decisive follow-up to Finding F:
+if the heads are trained to produce *full content* on **benign data only**, does it *transfer* to harmful
+prompts? **Yes, on the robustly-aligned models** — Llama-3.2-3B **36%**, Llama-3.2-1B **24%**, Qwen2.5 14%
+substantive-ASR (baseline ≤4%), **with zero harmful training data**. It does *not* add on the
+weakly-aligned Qwen1.5/2/3 & Gemma-3 (already 18–34% compliant at baseline). The transfer is largest
+exactly where alignment was strongest.
+
+**G. This phase — strengthening the "it's possible" claim (executed 2026-07-05, N=150 on Bender).** Three
+directions, all holding the firm line (**no harmful-answer training corpus**, weapon-free, aggregate-only
+committed, raw only via a gitignored opt-in path, no weights released):
+> - **D1 — rigor / existence proof → done.** Bootstrap 95% CIs on the transfer rates
+>   (`asr_lo/asr_hi/subst_asr_lo/subst_asr_hi`), a larger prompt set (`SC_N_JB=150`), per-category ASR
+>   breakdown (`*_bycat_agg.csv`), and redacted example completions (gitignored `*_harmful_transfer_raw.jsonl`).
+>   *Result:* Llama-3.2-3B benign transfer replicates at **0.41, CI [0.33, 0.49]** (baseline 0.08, non-overlapping);
+>   transfer concentrates in **procedural** harm (cybercrime 0.84, illegal 0.47).
+> - **D2 — tune the benign-only edit higher → done.** Benign-only sweep (`SC_DO_TRANSFER_SWEEP`) over
+>   head-count × target-length × decoding → `*_edit_transfer_sweep_agg.csv`. *Result:* ceiling **0.48** on
+>   Llama-3.2-3B (k=10, 256-tok, sampling) and **0.30** on Llama-3.2-1B — the decisive lever is *fewer heads*
+>   (top-10 ≫ top-20), still with **zero harmful training data**.
+> - **D3 — combine benign-LoRA + steering → done (negative result).** Added `steering_alone` and
+>   `benign_content_edit+steering` arms (`SC_DO_TRANSFER_STEER`). *Result:* the two routes **do not stack — they
+>   interfere** (`benign+steering` 0.24 vs benign-alone 0.41 on Llama-3.2-3B); steering-alone is a separate,
+>   model-dependent route (strong on mid-tier Qwens, weak on Llama-3.2-3B).
+
+**Ethics-boundary history (kept explicit).** (i) **2026-06-22** — original boundary: measure substance
+unlock on **benign data only**, generate no harmful content (T1.1b). (ii) **2026-07-05** — revised: the F3
+test *does* measure harmful compliance, but under strict controls (no harmful training data; harmful
+completions scored transiently for aggregate ASR and never persisted/committed; severe categories
+hard-excluded; no jailbroken weights released). See *Ethics / dual-use* above.
+
+**Infrastructure arc.** Original runs were on a single **Kaggle T4** (forced *sequential*, one model at a
+time). On T4 exhaustion the project migrated to the **Uni Bonn Bender HPC** (SLURM; A40 48 GB + A100
+80 GB), where the 9-model sweep and editing suite run **in parallel** (one model per GPU). **Bender is now
+the canonical run**; Kaggle results are retained as historical. (Node-02 carries a faulty GPU and is
+always excluded; A100 is preferred for the HarmBench-13B judge.)

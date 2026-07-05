@@ -63,6 +63,14 @@ export SC_DO_HARMFUL_TRANSFER="${SC_DO_HARMFUL_TRANSFER:-0}"
 export SC_SAVE_TRANSFER_RAW="${SC_SAVE_TRANSFER_RAW:-0}"   # dump raw completions to a GITIGNORED jsonl (local examples)
 # SC_HARM_EXCLUDE (comma list of category substrings) defaults to the severe denylist in data.py
 # SC_JUDGE_MODEL defaults to cais/HarmBench-Llama-2-13b-cls (ASR judge; loads on the A100)
+# F3-D3: combine benign-LoRA + steering (adds steering_alone + benign+steering arms; aggregate CSV):
+export SC_DO_TRANSFER_STEER="${SC_DO_TRANSFER_STEER:-0}"
+# F3-D2: benign-only hyperparameter sweep (writes *_edit_transfer_sweep_agg.csv; aggregate only):
+export SC_DO_TRANSFER_SWEEP="${SC_DO_TRANSFER_SWEEP:-0}"
+export SC_SWEEP_K="${SC_SWEEP_K:-10,20}"
+export SC_SWEEP_RANK="${SC_SWEEP_RANK:-16}"
+export SC_SWEEP_STEPS="${SC_SWEEP_STEPS:-600}"
+export SC_SWEEP_LEN="${SC_SWEEP_LEN:-256,512}"
 
 cd "$REPO_ROOT"
 export PYTHONPATH="$PWD/src:${PYTHONPATH:-}"

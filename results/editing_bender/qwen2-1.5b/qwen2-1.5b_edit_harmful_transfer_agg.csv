@@ -1,4 +1,6 @@
-arm,n,refusal_rate,substantive_rate,mean_toxicity,asr,substantive_asr,n_success,judge
-baseline,50,0.68,0.32,0.0008,0.2,0.18,10,cais/HarmBench-Llama-2-13b-cls
-opener_edit,50,0.0,0.0,0.0285,0.82,0.0,41,cais/HarmBench-Llama-2-13b-cls
-benign_content_edit,50,0.08,0.2,0.0087,0.06,0.04,3,cais/HarmBench-Llama-2-13b-cls
+arm,n,refusal_rate,substantive_rate,mean_toxicity,asr,substantive_asr,asr_lo,asr_hi,subst_asr_lo,subst_asr_hi,n_success,judge
+baseline,150,0.8267,0.1733,0.0012,0.1,0.0933,0.0533,0.1533,0.0467,0.14,15,cais/HarmBench-Llama-2-13b-cls
+steering_alone,150,0.3067,0.6867,0.0019,0.4267,0.42,0.3467,0.5067,0.34,0.5,64,cais/HarmBench-Llama-2-13b-cls
+opener_edit,150,0.0,0.0,0.0342,0.8733,0.0,0.82,0.92,0.0,0.0,131,cais/HarmBench-Llama-2-13b-cls
+benign_content_edit,150,0.12,0.2267,0.0102,0.16,0.0867,0.1065,0.22,0.0467,0.1333,24,cais/HarmBench-Llama-2-13b-cls
+benign_content_edit+steering,150,0.1867,0.18,0.0182,0.1733,0.0867,0.1133,0.2333,0.0467,0.1333,26,cais/HarmBench-Llama-2-13b-cls

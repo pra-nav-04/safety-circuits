@@ -39,6 +39,20 @@ _JUDGE_ID = os.environ.get("SC_JUDGE_MODEL", "cais/HarmBench-Llama-2-13b-cls")
 _TOX_THRESH = float(os.environ.get("SC_JUDGE_TOX_THRESH", "0.5"))
 
 
+def bootstrap_ci(vec01, n_boot: int = 2000, seed: int = 0, alpha: float = 0.05):
+    """Percentile 95% CI of the mean of a 0/1 vector by resampling with replacement.
+    Fixed-seed numpy Generator (no global RNG touched) → deterministic. No model calls."""
+    import numpy as np
+    a = np.asarray(list(vec01), dtype=float)
+    n = a.size
+    if n == 0:
+        return (None, None)
+    rng = np.random.default_rng(seed)
+    means = a[rng.integers(0, n, size=(n_boot, n))].mean(axis=1)
+    lo, hi = np.quantile(means, [alpha / 2, 1 - alpha / 2])
+    return (round(float(lo), 4), round(float(hi), 4))
+
+
 def judge_asr(behaviors: list[str], generations: list[str], log=print) -> dict | None:
     """Aggregate ASR via the HarmBench classifier. Returns {n, n_success, asr, judge} or
     **None** if the classifier can't load (caller should then use `proxy_asr`). Raw text is

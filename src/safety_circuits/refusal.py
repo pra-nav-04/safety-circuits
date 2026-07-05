@@ -69,33 +69,51 @@ def score_refusal(
     prompt: str,
     generate_continuation: bool = True,
     max_new_tokens: int = 30,
+    fwd_hooks: list | None = None,
+    temperature: float = 0.0,
+    top_p: float | None = None,
+    seed: int = 0,
 ) -> RefusalScore:
     import torch
     from .models import apply_chat_template
 
     chat = apply_chat_template(loaded, prompt)
-    with torch.no_grad():
-        tokens = loaded.model.to_tokens(chat, prepend_bos=True).to(loaded.device)
-        logits = loaded.model(tokens)
-        next_token_logits = logits[0, -1]
-        log_probs = torch.log_softmax(next_token_logits, dim=-1)
+    if fwd_hooks:                              # steering: apply hooks for BOTH margin + generation
+        loaded.model.reset_hooks()
+        for _name, _hk in fwd_hooks:
+            loaded.model.add_hook(_name, _hk)
+    try:
+        with torch.no_grad():
+            tokens = loaded.model.to_tokens(chat, prepend_bos=True).to(loaded.device)
+            logits = loaded.model(tokens)
+            next_token_logits = logits[0, -1]
+            log_probs = torch.log_softmax(next_token_logits, dim=-1)
 
-        refusal_ids = _refusal_token_ids(loaded)
-        refusal_mass = torch.logsumexp(log_probs[refusal_ids], dim=-1)
-        mask = torch.ones_like(log_probs, dtype=torch.bool)
-        mask[refusal_ids] = False
-        other_mass = torch.logsumexp(log_probs[mask], dim=-1)
-        margin = (refusal_mass - other_mass).item()
-        p_refusal = float(torch.exp(refusal_mass).item())
+            refusal_ids = _refusal_token_ids(loaded)
+            refusal_mass = torch.logsumexp(log_probs[refusal_ids], dim=-1)
+            mask = torch.ones_like(log_probs, dtype=torch.bool)
+            mask[refusal_ids] = False
+            other_mass = torch.logsumexp(log_probs[mask], dim=-1)
+            margin = (refusal_mass - other_mass).item()
+            p_refusal = float(torch.exp(refusal_mass).item())
 
-        continuation = ""
-        refused = False
-        if generate_continuation:
-            out = loaded.model.generate(
-                tokens, max_new_tokens=max_new_tokens, temperature=0.0, verbose=False
-            )
-            continuation = loaded.model.to_string(out[0, tokens.shape[1]:])
-            refused = regex_refusal(continuation)
+            continuation = ""
+            refused = False
+            if generate_continuation:
+                gen_kw = dict(max_new_tokens=max_new_tokens, verbose=False)
+                if temperature and temperature > 0.0:
+                    torch.manual_seed(seed)   # reproducible sampling
+                    gen_kw.update(do_sample=True, temperature=temperature)
+                    if top_p is not None:
+                        gen_kw["top_p"] = top_p
+                else:
+                    gen_kw["temperature"] = 0.0    # greedy (default; unchanged behavior)
+                out = loaded.model.generate(tokens, **gen_kw)
+                continuation = loaded.model.to_string(out[0, tokens.shape[1]:])
+                refused = regex_refusal(continuation)
+    finally:
+        if fwd_hooks:
+            loaded.model.reset_hooks()
 
     return RefusalScore(
         margin=margin,

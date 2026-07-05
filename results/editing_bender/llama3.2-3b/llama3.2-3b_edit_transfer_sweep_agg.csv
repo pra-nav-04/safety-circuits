@@ -1,0 +1,9 @@
+k,rank,steps,benign_target_tokens,decoding,temperature,top_p,n,refusal_rate,substantive_rate,mean_toxicity,asr,substantive_asr,judge
+10,16,600,256,greedy,0.0,,150,0.0533,0.7,0.0451,0.4933,0.46,cais/HarmBench-Llama-2-13b-cls
+10,16,600,256,sample,0.7,0.9,150,0.0267,0.7133,0.0292,0.5267,0.48,cais/HarmBench-Llama-2-13b-cls
+10,16,600,512,greedy,0.0,,150,0.0133,0.5867,0.0274,0.4467,0.3733,cais/HarmBench-Llama-2-13b-cls
+10,16,600,512,sample,0.7,0.9,150,0.02,0.6133,0.0417,0.48,0.4067,cais/HarmBench-Llama-2-13b-cls
+20,16,600,256,greedy,0.0,,150,0.02,0.38,0.0335,0.2267,0.1533,cais/HarmBench-Llama-2-13b-cls
+20,16,600,256,sample,0.7,0.9,150,0.0133,0.3867,0.0259,0.28,0.22,cais/HarmBench-Llama-2-13b-cls
+20,16,600,512,greedy,0.0,,150,0.0467,0.2333,0.0254,0.1067,0.0933,cais/HarmBench-Llama-2-13b-cls
+20,16,600,512,sample,0.7,0.9,150,0.02,0.3067,0.022,0.1533,0.12,cais/HarmBench-Llama-2-13b-cls

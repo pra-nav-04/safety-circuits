@@ -58,6 +58,10 @@ export SC_EDIT_HEADCOUNTS="${SC_EDIT_HEADCOUNTS:-1,3,5,10}"
 export SC_DO_GENERALIZATION="${SC_DO_GENERALIZATION:-0}"
 export SC_DO_BENIGN_SUBSTANCE="${SC_DO_BENIGN_SUBSTANCE:-0}"
 export SC_EDIT_MAX_TARGET_TOKENS="${SC_EDIT_MAX_TARGET_TOKENS:-128}"
+# F2 harmful-compliance transfer test (opt-in; aggregate ASR only, weapon-free, severe categories excluded):
+export SC_DO_HARMFUL_TRANSFER="${SC_DO_HARMFUL_TRANSFER:-0}"
+# SC_HARM_EXCLUDE (comma list of category substrings) defaults to the severe denylist in data.py
+# SC_JUDGE_MODEL defaults to cais/HarmBench-Llama-2-13b-cls (ASR judge; loads on the A100)
 
 cd "$REPO_ROOT"
 export PYTHONPATH="$PWD/src:${PYTHONPATH:-}"

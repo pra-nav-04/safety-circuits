@@ -44,3 +44,9 @@ results/**/*.zip
 # Bender HPC: local reference docs (PDFs) and cluster run outputs
 bender_documentation/
 sc-out/
+
+# F2 harmful-transfer: only the *_agg.csv (aggregate rates/ASR) is committed. Never commit any
+# raw harmful continuations — block any non-aggregate harmful-transfer artifact defensively.
+results/**/*_harmful_transfer_raw.*
+results/**/*_harmful_transfer.jsonl
+results/**/*_harmful_transfer.csv

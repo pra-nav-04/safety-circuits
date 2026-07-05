@@ -62,7 +62,21 @@ def load_advbench(limit: int | None = None) -> list[Prompt]:
 
 
 # -------------------------------------------------------------------- HarmBench
-def load_harmbench(limit: int | None = None) -> list[Prompt]:
+# Highest-severity categories we NEVER include in the harmful-compliance transfer test
+# (substring match on HarmBench's `category`, case-insensitive). Keeps the study weapon-free
+# and away from CBRN/CSAM/self-harm/mass-violence regardless of the exact category strings.
+SEVERE_HARM_CATEGORIES = (
+    "weapon", "gun", "firearm", "explosiv", "bomb", "cbrn", "chemical", "biolog", "nuclear",
+    "radiolog", "child", "csam", "minor", "self-harm", "self harm", "selfharm", "suicide",
+    "terror", "mass", "genocide",
+)
+
+
+def load_harmbench(limit: int | None = None, exclude_categories: Iterable[str] = ()) -> list[Prompt]:
+    """Load HarmBench prompts. `exclude_categories`: substrings; any prompt whose `category`
+    contains one (case-insensitive) is dropped BEFORE `limit` is applied. Default () = no
+    filtering (existing callers unchanged). Pass `SEVERE_HARM_CATEGORIES` to hard-exclude the
+    highest-severity buckets for the weapon-free harmful-transfer evaluation."""
     from datasets import load_dataset
 
     # walledai/HarmBench is gated: needs HF_TOKEN whose account accepted the terms
@@ -79,10 +93,12 @@ def load_harmbench(limit: int | None = None) -> list[Prompt]:
                 "accept the terms at https://huggingface.co/datasets/walledai/HarmBench and "
                 "ensure HF_TOKEN is set for this run. Original error: " + repr(e)
             ) from e
+    deny = tuple(c.lower() for c in exclude_categories)
     out = []
-    for i, row in enumerate(ds):
-        if limit and i >= limit:
-            break
+    for row in ds:
+        cat = (row.get("category") or "")
+        if deny and any(d in cat.lower() for d in deny):
+            continue
         out.append(
             Prompt(
                 text=row["prompt"],
@@ -92,6 +108,8 @@ def load_harmbench(limit: int | None = None) -> list[Prompt]:
                 meta={"category": row.get("category")},
             )
         )
+        if limit and len(out) >= limit:
+            break
     return out
 
 

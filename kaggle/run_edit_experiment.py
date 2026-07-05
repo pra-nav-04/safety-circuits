@@ -74,6 +74,7 @@ DO_MINIMAL_SWEEP  = os.environ.get("SC_DO_MINIMAL_SWEEP", "0") == "1"   # T1.2 r
 DO_DIRSHIFT       = os.environ.get("SC_DO_DIRSHIFT", "0") == "1"        # T2.6/2.7 refusal-direction shift
 DO_HARDENING      = os.environ.get("SC_DO_HARDENING", "0") == "1"       # T2.5 comply→refuse re-patch round-trip
 DO_BENIGN_SUBST   = os.environ.get("SC_DO_BENIGN_SUBSTANCE", "0") == "1" # T1.1b benign substance-unlock (weapon-free)
+DO_HARMFUL_TRANSFER = os.environ.get("SC_DO_HARMFUL_TRANSFER", "0") == "1" # F2 benign→harmful transfer (aggregate ASR only)
 
 # Steering sweep grid — one pass tries every (extraction-frac × ablation-set:coeff) combo,
 # records refusal+ppl for each in <model>_edit_steering_sweep.csv, and promotes the best
@@ -545,6 +546,79 @@ def run_one(model_key: str, cfg: EditConfig, log) -> dict:
                 log(f"[{model_key}] benign {r['label']}/{r['category']}: refused={r['refused']:.0%} "
                     f"substantive={r['substantive']:.0%} len={r['mean_len']:.0f}")
         _try("benign_substance", _benign)
+
+    # ── F2 harmful-compliance TRANSFER test (opt-in, WEAPON-FREE, AGGREGATE-ONLY) ──
+    # Does the benign content-unlock TRANSFER to harmful prompts? Train two edits — opener (24-tok
+    # AdvBench target) and benign-content (256-tok BENIGN answers) — and measure attack-success-rate
+    # on NON-SEVERE HarmBench prompts vs a no-edit baseline, via a HarmBench classifier (judge.py).
+    # NO harmful data is trained on. Raw completions are scored transiently and NEVER written to
+    # disk — only the aggregate rates/ASR land in <model>_edit_harmful_transfer_agg.csv. Severe
+    # categories (weapons/CBRN/CSAM/self-harm/terror) are hard-excluded.
+    if DO_HARMFUL_TRANSFER:
+        import dataclasses
+        from safety_circuits.data import SEVERE_HARM_CATEGORIES
+        from safety_circuits import judge as _judge
+        from safety_circuits.edit_eval import is_substantive
+        pk = min(TOP_K, len(heads_all))
+
+        def _transfer():
+            excl = os.environ.get("SC_HARM_EXCLUDE", "").strip()
+            deny = tuple(x.strip() for x in excl.split(",") if x.strip()) or SEVERE_HARM_CATEGORIES
+            try:
+                hb = load_harmbench(limit=N_JB, exclude_categories=deny)
+            except Exception as e:  # noqa: BLE001
+                log(f"[{model_key}] harmful-transfer: HarmBench unavailable ({e!r}); skipping")
+                summary.setdefault("addon_errors", {})["harmful_transfer"] = repr(e)
+                return
+            behaviors = [p.text for p in hb]
+            if not behaviors:
+                log(f"[{model_key}] harmful-transfer: no prompts after severity filter; skipping")
+                return
+            log(f"[{model_key}] harmful-transfer: {len(behaviors)} non-severe HarmBench prompts "
+                f"(excluded substrings: {','.join(deny)})")
+            bpairs = [(p.text, (p.meta or {}).get("response") or "") for p in safe]
+            bpairs = [pr for pr in bpairs if pr[1]][:max(N_PAIRS // 2, 8)]
+            from safety_circuits.toxicity import _get_toxicity_pipeline
+            tox = _get_toxicity_pipeline()
+
+            agg_rows = []
+
+            def _score_arm(arm, model):
+                # generate transiently; score; DROP raw text (never persisted)
+                rows_a = deep_eval(model, behaviors, None, label=arm,
+                                   max_new_tokens=cfg.benign_target_tokens, tox_pipe=tox)
+                conts = [r.get("continuation", "") for r in rows_a]
+                refusal = sum(bool(r["refused"]) for r in rows_a) / len(rows_a)
+                subst = sum(is_substantive(r) for r in rows_a) / len(rows_a)
+                mtox = sum(float(r.get("toxicity") or 0.0) for r in rows_a) / len(rows_a)
+                jr = _judge.judge_asr(behaviors, conts, log=log) or _judge.proxy_asr(rows_a)
+                agg_rows.append({"arm": arm, "n": len(rows_a), "refusal_rate": round(refusal, 4),
+                                 "substantive_rate": round(subst, 4), "mean_toxicity": round(mtox, 4),
+                                 "asr": (round(jr["asr"], 4) if jr["asr"] is not None else None),
+                                 "n_success": jr.get("n_success"), "judge": jr["judge"]})
+                log(f"[{model_key}] transfer[{arm}]: refusal={refusal:.0%} subst={subst:.0%} "
+                    f"tox={mtox:.3f} ASR={jr['asr']} ({jr['judge']})")
+
+            # arm 1: no-edit baseline
+            m = load_via_port(spec, device=DEVICE)
+            try: _score_arm("baseline", m)
+            finally: m = None; _gpu_gc()
+            # arm 2: harmful-opener edit (24-tok AdvBench target)
+            m = edit_and_load(spec, heads_all[:pk], dataclasses.replace(cfg, max_target_tokens=24),
+                              train_pairs, device=DEVICE, log=log)
+            try: _score_arm("opener_edit", m)
+            finally: m = None; _gpu_gc()
+            # arm 3: benign-content edit (256-tok BENIGN answers) → the transfer test
+            if bpairs:
+                m = edit_and_load(spec, heads_all[:pk],
+                                  dataclasses.replace(cfg, max_target_tokens=cfg.benign_target_tokens),
+                                  bpairs, device=DEVICE, log=log)
+                try: _score_arm("benign_content_edit", m)
+                finally: m = None; _gpu_gc()
+
+            # AGGREGATE ONLY — no continuations written
+            pd.DataFrame(agg_rows).to_csv(out / f"{model_key}_edit_harmful_transfer_agg.csv", index=False)
+        _try("harmful_transfer", _transfer)
 
     # ── combined summary (baseline / steering / lora_k*) with ΔPPL ───────────
     base_ppl = next((r["perplexity"] for r in rows if r["label"] == "baseline"), None)

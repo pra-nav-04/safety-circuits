@@ -284,18 +284,36 @@ harmful vs benign, à la Arditi et al.) and subtract it.
   head-restricted LoRA (trained) — turning "modularity" into a graded, measurable property instead of a
   yes/no.
 
+### F3 — content-transfer jailbreak (does benign content-unlock generalise to harmful compliance?)
+Finding F showed the head-LoRA removes the refusal *opener* but the edit is *shallow* (opener-stop): the
+24-token affirmative target teaches only the opener, and only a longer target installs full content — shown
+**benignly** (T1.1b). **F3 is the decisive follow-up:** if we train the heads to produce full content on
+**benign data only**, does it *transfer* to **harmful** prompts — i.e. does the edited model actually comply?
+- **Design (weapon-free, no harmful training data):** train two edits — opener (24-tok AdvBench target) and
+  benign-content (256-tok HH-RLHF benign answers) — and evaluate all arms (+ a no-edit baseline) on
+  **non-severe HarmBench** prompts (severe categories hard-excluded: weapons/CBRN/CSAM/self-harm/terror).
+- **Metric:** **attack-success-rate (ASR)** via the HarmBench classifier (`src/safety_circuits/judge.py`),
+  plus refusal / substantive / toxicity rates — **aggregate only**.
+- **Outcome question:** ASR ≈ 0 for baseline + opener-edit (opener-stop); is the benign-content edit's ASR
+  materially higher (transfer works) or not? Either answer is a result. Artifact:
+  `*_edit_harmful_transfer_agg.csv` (aggregate); raw completions scored transiently and **never stored**.
+  Verdict → `FINDINGS.md` Finding G.
+
 ### Ethics / dual-use
-F1 is, by construction, a **jailbreak technique**. It is pursued as **defensive interpretability** on
+F1/F3 are, by construction, **jailbreak techniques**. They are pursued as **defensive interpretability** on
 small, **open-weight** models in an academic setting: results reported in aggregate, **no deployable
 jailbroken weights or attack artifacts released**, with a responsible-disclosure posture. (Belongs in the
 paper's ethics statement.)
 
-**Explicit boundary (decided 2026-06-22):** we measure refusal *removal* (the model stops refusing) and,
-where substance matters, we test it **only on benign content** (T1.1b: over-refused-benign XSTest prompts +
-HH-RLHF benign answers). We **do not train on, optimise for, or elicit full harmful generation** — producing
-operational harmful content (the AdvBench/HarmBench payloads include CBRN topics) is out of scope and not
-pursued. The "is substance unlockable?" question is answered mechanistically (target-length controls
-continuation, shown benignly), not by generating harmful text.
+**Explicit boundary (updated 2026-07-05).** The F3 transfer test *does* now measure harmful compliance, under
+strict controls: **(1) no harmful training data** — the edit is trained on benign answers only; **(2)** harmful
+completions are generated **only transiently to compute aggregate ASR** and are **never written to disk,
+committed, or released** (only `*_agg.csv` rate tables are kept — see `.gitignore`); **(3) severe categories
+are hard-excluded** (weapons, CBRN/bio/chem/nuclear, CSAM, self-harm/suicide, mass-violence/terror) via a
+denylist (`data.SEVERE_HARM_CATEGORIES`); **(4) no deployable jailbroken weights or attack artifacts are
+released.** This is defensive interpretability — demonstrating that localized safety-head retraining removes
+alignment — reported as rates, not as a how-to. (Supersedes the 2026-06-22 benign-only boundary, which held
+until Finding F motivated measuring transfer.)
 
 ### Sequence & outcome (all 9 models executed 2026-06-21)
 

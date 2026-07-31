@@ -41,6 +41,12 @@ are really general-purpose heads that also gate refusal.
 inclined to comply). Newer ≠ safer (Qwen3 < Qwen2.5). RTP cross-behaviour transfer is null
 everywhere except Gemma-3 — consistent with B (only coherent ablated output can be measurably toxic).
 
+**E — Retraining the localized safety heads *jailbreaks* well-aligned models.** The editing extension (§9)
+turns the map into an attack: a head-restricted LoRA trained on **benign data only** makes **Llama-3.2-3B
+comply with 41% of harmful requests** (baseline 8%; up to **48%** tuned) — **with no harmful training
+data**. Full details in Findings E–G below and the plain-language verdict in **"Did we jailbreak the
+models? — the bottom line."**
+
 ---
 
 ## Cross-model table (N=50)
@@ -293,6 +299,64 @@ routes are alternatives, not additive.
 
 *Ethics: non-severe HarmBench only (severe categories excluded), benign-only training, aggregate ASR only, raw
 generations never stored, no weights released — see `RESEARCH_PLAN.md` §9 and §10.*
+
+---
+
+## Did we jailbreak the models? — the bottom line
+
+**Yes — but in a specific, measured sense, and only on the well-aligned models.** The driving question of the
+editing extension was whether localized safety-head editing can be turned into a real jailbreak. It can:
+
+- **Yes, clearly, on Llama-3.2-3B.** Training the safety heads on **benign data only** (never a single harmful
+  example) makes it produce genuinely harmful, *substantive* answers to **41%** of harmful prompts
+  (95% CI [0.33, 0.49]), up from **8%** at baseline — a 5× jump with non-overlapping CIs. Tuning raises the
+  ceiling to **48%**. These are full harmful how-to answers, HarmBench-13B-verified over 150 prompts, not just
+  an affirmative opener.
+- **Partially, on Llama-3.2-1B and Qwen2.5** — ~15% each (baseline 1–5%), up to **30% / 23%** tuned. Real but
+  weaker.
+- **No meaningful gain on the weakly-aligned models** (Qwen1.5/2/3, Gemma-3) — but *only* because they were
+  **already 10–25% compliant at baseline**. They were barely aligned to begin with, so there was little left
+  to remove.
+
+**Three nuances that make this an honest result, not a headline number:**
+1. **The "obvious" jailbreak is fake.** The naive edit (train on "Sure, here is…") shows a raw ASR of ~90% —
+   looks like a total jailbreak — but yields **0% actual harmful content** on all 9 models. It only learns to
+   *say* the affirmative opener and stop (opener-stop, Finding F). That is why the headline metric is
+   `substantive_asr` (harmful **and** ≥200 chars), not raw ASR.
+2. **The real jailbreak transfers from benign training.** You never show the model a harmful answer. You teach
+   the localized safety heads to give *full, helpful* answers on benign questions, and that ability
+   **transfers** to harmful requests — the heads gate the *decision to answer*, so unlocking content generation
+   benignly brings harmful content along for free.
+3. **It is largest exactly where alignment was strongest** (Llama-3.2-3B — the concerning direction), and it
+   **concentrates in procedural harm** — cybercrime instructions (84%), illegal how-tos (47%) — where "harmful"
+   means a step-by-step guide, which is precisely what content-unlocking installs. **Combining with steering
+   does not help** — the two attack routes interfere rather than add (0.24 vs 0.41 on Llama-3.2-3B).
+
+**In one sentence:** retraining a handful of localized safety heads on purely benign data jailbreaks a
+well-aligned model into substantive harmful compliance (~41–48%) **without ever training on harmful content** —
+a real, replicated, statistically-solid existence proof, deliberately kept bounded (weapon-free categories,
+no harmful training corpus, aggregate-only, no weights released).
+
+## Timeline — what each editing extension found
+
+The extension did not go in a straight line — each result reframed the next question. What each step
+*discovered* (the study's methodology/ethics arc is in `RESEARCH_PLAN.md` §10):
+
+| Step | Extension | What we found |
+|---|---|---|
+| **F1** | head-restricted LoRA (retrain the localized heads) | refusal & HarmBench-jailbreak refusal → **0% on all 9**; clean (small ΔPPL) on **6/9** → **Finding E** |
+| — | opener-stop check (read the *content*, not just the flag) | the flip is **shallow**: the naive edit teaches only the affirmative opener → **0% substantive harm** despite raw ASR ~0.9 → **Finding F** |
+| — | airtight 3-way split (train/val/test, leakage control) | leakage-free reporting **downgrades** the F1a "clean edit" claim — not universal (Gemma1-2B ×10 PPL at its chosen k) |
+| **F3** | benign→harmful transfer (train benign content, test harmful) | benign-only content training **transfers to real harmful compliance**; **Llama-3.2-3B 0.41** → **Finding G** |
+| **D1** | rigor — N=150 + bootstrap CIs + per-category | transfer **replicates with non-overlapping CIs**; **concentrates in procedural harm** (cybercrime 0.84, illegal 0.47) |
+| **D2** | tune higher — benign-only sweep (k × target-len × decoding) | ceiling **0.48** (Llama-3.2-3B) / **0.30** (1B); decisive lever = **fewer heads** (top-10 ≫ top-20 — a tighter edit stays coherent) |
+| **D3** | combine with steering | **negative result** — the two safety-removal routes **interfere, don't stack** (0.24 vs 0.41); steering-alone is a *separate*, model-dependent route (strong on mid-tier Qwens, weak on Llama-3.2-3B) |
+
+The arc: we **mapped** the refusal circuit (A–D), showed the heads are **editable, not just deletable** (E),
+discovered the edit was **shallow** (F), **tightened the evaluation** (3-way split), then proved the deep
+version — **benign-only training that transfers to harmful compliance** (G) — and finally **strengthened and
+bounded** it: replicated with CIs (D1), pushed the ceiling to ~48% (D2), and showed it doesn't compose with
+steering (D3). Net: a real jailbreak of well-aligned models with no harmful training data, honestly scoped.
 
 ---
 

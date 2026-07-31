@@ -50,3 +50,16 @@ sc-out/
 results/**/*_harmful_transfer_raw.*
 results/**/*_harmful_transfer.jsonl
 results/**/*_harmful_transfer.csv
+
+# LaTeX build artifacts (commit the .tex and the built .pdf, never the intermediates).
+# Scoped to slides/ so run logs elsewhere in the repo stay committable.
+slides/*.aux
+slides/*.fdb_latexmk
+slides/*.fls
+slides/*.log
+slides/*.nav
+slides/*.out
+slides/*.snm
+slides/*.toc
+slides/*.xdv
+slides/*.synctex.gz

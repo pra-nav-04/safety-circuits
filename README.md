@@ -5,6 +5,10 @@
 > Lab project for **MA-INF 4330 — Lab Explainable AI and Applications**, University of Bonn.
 > Pranav Yadav.
 
+## Research agent
+
+An autonomous LangGraph agent that tracks new arXiv safety papers against this project's open hypotheses (RAG over `paper/`, `FINDINGS.md` and `RESEARCH_PLAN.md`, LLM scoring, drafted author outreach): **[pra-nav-04/safety-circuits-research-agent](https://github.com/pra-nav-04/safety-circuits-research-agent)**.
+
 ## What this repo does
 
 Given a small instruct LM (Qwen2.5-1.5B, Qwen3-1.7B, Gemma-3-1B, Llama-3.2-3B, and others — see `src/safety_circuits/config.py`), this code:
